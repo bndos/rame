@@ -8,4 +8,5 @@ name = "rame"
 path = "src/lib.rs"
 
 [dependencies]
+ndarray = "0.17.2"
 thiserror = "2"
