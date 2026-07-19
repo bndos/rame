@@ -60,20 +60,29 @@ mod tests {
     fn path_ref_resolves_to_itself() {
         let path = Path::new("./models");
 
-        assert_eq!(path.resolve_model_source().unwrap(), PathBuf::from("./models"));
+        assert_eq!(
+            path.resolve_model_source().unwrap(),
+            PathBuf::from("./models")
+        );
     }
 
     #[test]
     fn string_resolves_as_local_path() {
         let path = "./models".to_string();
 
-        assert_eq!(path.resolve_model_source().unwrap(), PathBuf::from("./models"));
+        assert_eq!(
+            path.resolve_model_source().unwrap(),
+            PathBuf::from("./models")
+        );
     }
 
     #[test]
     fn str_ref_resolves_as_local_path() {
         let path = "./models";
 
-        assert_eq!(path.resolve_model_source().unwrap(), PathBuf::from("./models"));
+        assert_eq!(
+            path.resolve_model_source().unwrap(),
+            PathBuf::from("./models")
+        );
     }
 }
