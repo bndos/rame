@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use crate::image::ImageError;
+use crate::sources::SourceError;
 
 pub type RameResult<T> = Result<T, RameError>;
 
@@ -8,4 +9,7 @@ pub type RameResult<T> = Result<T, RameError>;
 pub enum RameError {
     #[error(transparent)]
     Image(#[from] ImageError),
+
+    #[error(transparent)]
+    Source(#[from] SourceError),
 }

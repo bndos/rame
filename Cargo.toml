@@ -8,5 +8,9 @@ name = "rame"
 path = "src/lib.rs"
 
 [dependencies]
+hf-hub = { version = "1.0.0", features = ["blocking", "rustls-tls"], optional = true }
 ndarray = "0.17.2"
 thiserror = "2"
+
+[features]
+huggingface = ["dep:hf-hub"]

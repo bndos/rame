@@ -2,47 +2,78 @@ use std::path::{Path, PathBuf};
 
 use crate::RameResult;
 
-/// Resolves a model source into a local model file path.
+/// Resolves a model source into a local filesystem path.
 pub trait ResolveModelSource {
-    /// Returns a local path for `artifact_file`.
-    ///
-    /// Local file sources may ignore `artifact_file` because they already identify the model file
-    /// directly. Repository-backed sources use it as the artifact-relative file to fetch or locate.
-    fn resolve_model_file(&self, artifact_file: &str) -> RameResult<PathBuf>;
+    /// Returns a local path for this source.
+    fn resolve_model_source(&self) -> RameResult<PathBuf>;
 }
 
 impl ResolveModelSource for PathBuf {
-    fn resolve_model_file(&self, _artifact_file: &str) -> RameResult<PathBuf> {
+    fn resolve_model_source(&self) -> RameResult<PathBuf> {
         Ok(self.clone())
     }
 }
 
 impl ResolveModelSource for Path {
-    fn resolve_model_file(&self, _artifact_file: &str) -> RameResult<PathBuf> {
+    fn resolve_model_source(&self) -> RameResult<PathBuf> {
         Ok(self.to_path_buf())
     }
 }
 
 impl ResolveModelSource for &Path {
-    fn resolve_model_file(&self, _artifact_file: &str) -> RameResult<PathBuf> {
+    fn resolve_model_source(&self) -> RameResult<PathBuf> {
         Ok((*self).to_path_buf())
     }
 }
 
 impl ResolveModelSource for String {
-    fn resolve_model_file(&self, _artifact_file: &str) -> RameResult<PathBuf> {
+    fn resolve_model_source(&self) -> RameResult<PathBuf> {
         Ok(PathBuf::from(self))
     }
 }
 
 impl ResolveModelSource for str {
-    fn resolve_model_file(&self, _artifact_file: &str) -> RameResult<PathBuf> {
+    fn resolve_model_source(&self) -> RameResult<PathBuf> {
         Ok(PathBuf::from(self))
     }
 }
 
 impl ResolveModelSource for &str {
-    fn resolve_model_file(&self, _artifact_file: &str) -> RameResult<PathBuf> {
+    fn resolve_model_source(&self) -> RameResult<PathBuf> {
         Ok(PathBuf::from(self))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ResolveModelSource;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn path_buf_resolves_to_itself() {
+        let path = PathBuf::from("./models");
+
+        assert_eq!(path.resolve_model_source().unwrap(), path);
+    }
+
+    #[test]
+    fn path_ref_resolves_to_itself() {
+        let path = Path::new("./models");
+
+        assert_eq!(path.resolve_model_source().unwrap(), PathBuf::from("./models"));
+    }
+
+    #[test]
+    fn string_resolves_as_local_path() {
+        let path = "./models".to_string();
+
+        assert_eq!(path.resolve_model_source().unwrap(), PathBuf::from("./models"));
+    }
+
+    #[test]
+    fn str_ref_resolves_as_local_path() {
+        let path = "./models";
+
+        assert_eq!(path.resolve_model_source().unwrap(), PathBuf::from("./models"));
     }
 }
