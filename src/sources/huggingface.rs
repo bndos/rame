@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-
 use hf_hub::{HFClientSync, split_id};
 
-use super::{ResolveModelSource, SourceError};
+use super::{ResolveModelSource, ResolvedModelSource, SourceError};
 use crate::RameResult;
 
 /// Configured Hugging Face provider used to create model sources.
@@ -52,13 +50,14 @@ impl HuggingFaceModel {
 }
 
 impl ResolveModelSource for HuggingFaceModel {
-    fn resolve_model_source(&self) -> RameResult<PathBuf> {
+    fn resolve_model_source(&self) -> RameResult<ResolvedModelSource> {
         let (owner, name) = split_id(self.repo());
         let repo = self.client.model(owner, name);
 
         repo.snapshot_download()
             .maybe_revision(self.revision.clone())
             .send()
+            .map(ResolvedModelSource::new)
             .map_err(|err| SourceError::HuggingFace(err.to_string()).into())
     }
 }
