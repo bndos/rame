@@ -1,17 +1,21 @@
+use std::marker::PhantomData;
+
 use crate::RameResult;
 use crate::runtime::{Decoder, Processor};
 use crate::session::InferSession;
 
 /// Typed composition of processing, inference, and decoding stages.
-pub struct InferencePipeline<P, S, D> {
+pub struct InferencePipeline<M, P, S, D> {
+    architecture: PhantomData<M>,
     processor: P,
     session: S,
     decoder: D,
 }
 
-impl<P, S, D> InferencePipeline<P, S, D> {
-    pub fn new(processor: P, session: S, decoder: D) -> Self {
+impl<M, P, S, D> InferencePipeline<M, P, S, D> {
+    pub fn new(_architecture: M, processor: P, session: S, decoder: D) -> Self {
         Self {
+            architecture: PhantomData,
             processor,
             session,
             decoder,
@@ -19,7 +23,7 @@ impl<P, S, D> InferencePipeline<P, S, D> {
     }
 }
 
-impl<P, S, D> InferencePipeline<P, S, D>
+impl<M, P, S, D> InferencePipeline<M, P, S, D>
 where
     P: Processor,
     S: InferSession,
