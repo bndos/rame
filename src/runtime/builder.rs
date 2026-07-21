@@ -57,8 +57,7 @@ where
         InferencePipeline<M, A::Processor, <A::Backend as SessionBackend>::Session, A::Decoder>,
     > {
         let source = self.source.resolve_model_source()?;
-        let config = self.artifact.default_session_config();
-        let session = self.artifact.load_session(&source, config)?;
+        let session = self.artifact.load_session(&source)?;
         let processor = self.artifact.processor();
         let decoder = self.artifact.decoder();
 

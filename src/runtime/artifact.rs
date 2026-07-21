@@ -22,17 +22,16 @@ pub trait ModelArtifact {
     /// Artifact-relative path to the executable model file.
     fn model_file(&self) -> &Path;
 
-    fn default_session_config(&self) -> <Self::Backend as SessionBackend>::Config;
+    fn session_config(&self) -> <Self::Backend as SessionBackend>::Config;
     fn processor(&self) -> Self::Processor;
     fn decoder(&self) -> Self::Decoder;
 
     fn load_session(
         &self,
         source: &ResolvedModelSource,
-        config: <Self::Backend as SessionBackend>::Config,
     ) -> RameResult<<Self::Backend as SessionBackend>::Session> {
         let model_path = source.join_artifact_path(self.model_file())?;
 
-        Self::Backend::load(&model_path, config)
+        Self::Backend::load(&model_path, self.session_config())
     }
 }
