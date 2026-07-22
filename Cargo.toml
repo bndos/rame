@@ -10,7 +10,9 @@ path = "src/lib.rs"
 [dependencies]
 hf-hub = { version = "1.0.0", features = ["blocking", "rustls-tls"], optional = true }
 ndarray = "0.17.2"
+ort = { version = "2.0.0-rc.12", optional = true }
 thiserror = "2"
 
 [features]
 huggingface = ["dep:hf-hub"]
+onnxruntime = ["dep:ort"]
