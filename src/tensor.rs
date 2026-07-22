@@ -9,4 +9,14 @@ pub type TensorMap = BTreeMap<String, TensorValue>;
 #[derive(Debug, Clone)]
 pub enum TensorValue {
     F32(ArrayD<f32>),
+    I64(ArrayD<i64>),
+}
+
+impl TensorValue {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::F32(_) => "f32",
+            Self::I64(_) => "i64",
+        }
+    }
 }
