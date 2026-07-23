@@ -2,6 +2,7 @@ use thiserror::Error;
 
 use crate::image::ImageError;
 use crate::models::ModelError;
+use crate::preprocess::PreprocessError;
 use crate::session::SessionError;
 use crate::sources::SourceError;
 
@@ -14,6 +15,9 @@ pub enum RameError {
 
     #[error(transparent)]
     Model(#[from] ModelError),
+
+    #[error(transparent)]
+    Preprocess(#[from] PreprocessError),
 
     #[error(transparent)]
     Session(#[from] SessionError),
