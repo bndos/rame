@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use crate::image::ImageError;
+use crate::models::ModelError;
 use crate::session::SessionError;
 use crate::sources::SourceError;
 
@@ -10,6 +11,9 @@ pub type RameResult<T> = Result<T, RameError>;
 pub enum RameError {
     #[error(transparent)]
     Image(#[from] ImageError),
+
+    #[error(transparent)]
+    Model(#[from] ModelError),
 
     #[error(transparent)]
     Session(#[from] SessionError),
