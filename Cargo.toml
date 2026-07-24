@@ -18,3 +18,11 @@ thiserror = "2"
 huggingface = ["dep:hf-hub"]
 onnxruntime = ["dep:ort"]
 opencv = ["dep:opencv"]
+
+[[example]]
+name = "pp_doclayout_plus_onnx"
+required-features = ["huggingface", "onnxruntime", "opencv"]
+
+[dev-dependencies]
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+tabled = "0.21.0"

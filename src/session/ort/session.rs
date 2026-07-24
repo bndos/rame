@@ -39,6 +39,9 @@ impl InferSession for OrtSession {
                 TensorValue::F32(array) => {
                     Tensor::from_array(array).map(|tensor| (name, tensor.into()))
                 }
+                TensorValue::I32(array) => {
+                    Tensor::from_array(array).map(|tensor| (name, tensor.into()))
+                }
                 TensorValue::I64(array) => {
                     Tensor::from_array(array).map(|tensor| (name, tensor.into()))
                 }
@@ -53,6 +56,12 @@ impl InferSession for OrtSession {
                 Some(TensorElementType::Float32) => TensorValue::F32(
                     value
                         .try_extract_array::<f32>()
+                        .map_err(OrtError::from)?
+                        .to_owned(),
+                ),
+                Some(TensorElementType::Int32) => TensorValue::I32(
+                    value
+                        .try_extract_array::<i32>()
                         .map_err(OrtError::from)?
                         .to_owned(),
                 ),
