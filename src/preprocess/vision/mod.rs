@@ -5,9 +5,7 @@ mod output;
 
 #[cfg(feature = "opencv")]
 pub use opencv::OpenCvVisionBackend;
-pub use ops::{
-    Interpolation, NormalizeImage, Permute, PixelScale, Resize, ResizeMode, TensorLayout,
-};
+pub use ops::{Interpolation, NormalizeImage, Permute, Resize, ResizeMode, TensorLayout};
 pub use output::VisionTensorOutput;
 
 #[cfg(feature = "opencv")]
@@ -24,14 +22,14 @@ pub fn pipeline() -> VisionPipeline {
 #[cfg(all(test, feature = "opencv"))]
 mod tests {
     use crate::image::Image;
-    use crate::preprocess::vision::{Interpolation, NormalizeImage, Permute, PixelScale, Resize};
+    use crate::preprocess::vision::{Interpolation, NormalizeImage, Permute, Resize};
 
     #[test]
     fn default_pipeline_runs_vision_ops() {
         let image = Image::from_rgb8(1, 1, vec![255, 127, 0]).unwrap();
         let pipeline = super::pipeline()
             .add_op(Resize::fixed_square(2, Interpolation::Cubic))
-            .add_op(NormalizeImage::scale_only(PixelScale::OneOver255))
+            .add_op(NormalizeImage::scale(NormalizeImage::INV_255))
             .add_op(Permute::nchw());
 
         let output = pipeline.process(&image).unwrap();

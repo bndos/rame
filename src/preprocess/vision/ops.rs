@@ -11,13 +11,6 @@ pub enum TensorLayout {
     Nchw,
 }
 
-/// Scalar conversion applied before model-specific normalization constants.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PixelScale {
-    /// Converts `[0, 255]` bytes into `[0.0, 1.0]`.
-    OneOver255,
-}
-
 /// How a resize operation determines output dimensions.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ResizeMode {
@@ -70,8 +63,8 @@ impl Resize {
 /// artifact, not to the backend.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NormalizeImage {
-    /// Converts raw byte channels before mean/std normalization.
-    pub scale: PixelScale,
+    /// Multiplies raw byte channels before mean/std normalization.
+    pub scale: f32,
     /// Per-channel constants from the model's preprocessing metadata.
     pub mean: [f32; 3],
     /// Per-channel constants from the model's preprocessing metadata.
@@ -79,11 +72,13 @@ pub struct NormalizeImage {
 }
 
 impl NormalizeImage {
-    pub fn new(scale: PixelScale, mean: [f32; 3], std: [f32; 3]) -> Self {
+    pub const INV_255: f32 = 1.0 / 255.0;
+
+    pub fn new(scale: f32, mean: [f32; 3], std: [f32; 3]) -> Self {
         Self { scale, mean, std }
     }
 
-    pub fn scale_only(scale: PixelScale) -> Self {
+    pub fn scale(scale: f32) -> Self {
         Self::new(scale, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
     }
 }
