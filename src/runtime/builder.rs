@@ -57,15 +57,15 @@ where
         InferencePipeline<M, A::Processor, <A::Backend as SessionBackend>::Session, A::Decoder>,
     > {
         let source = self.source.resolve_model_source()?;
-        let session = self.artifact.load_session(&source)?;
-        let processor = self.artifact.processor();
-        let decoder = self.artifact.decoder();
+        let parts = self.artifact.into_parts();
+        let model_path = source.join_artifact_path(&parts.model_file)?;
+        let session = A::Backend::load(&model_path, parts.session_config)?;
 
         Ok(InferencePipeline::new(
             self.architecture,
-            processor,
+            parts.processor,
             session,
-            decoder,
+            parts.decoder,
         ))
     }
 }

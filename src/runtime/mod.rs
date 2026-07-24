@@ -6,7 +6,7 @@ mod pipeline;
 mod processor;
 
 pub use architecture::ModelArchitecture;
-pub use artifact::ModelArtifact;
+pub use artifact::{ArtifactParts, ModelArtifact};
 pub use builder::{Missing, ModelBuilder};
 pub use decoder::Decoder;
 pub use pipeline::InferencePipeline;
