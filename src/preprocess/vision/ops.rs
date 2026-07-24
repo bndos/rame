@@ -4,14 +4,14 @@ pub enum Interpolation {
     Cubic,
 }
 
-/// Tensor layout produced by image-to-tensor preprocessing.
+/// Tensor layout produced by layout conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TensorLayout {
     /// Batch, channel, height, width.
     Nchw,
 }
 
-/// Scalar conversion applied when turning image bytes into tensor values.
+/// Scalar conversion applied before model-specific normalization constants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PixelScale {
     /// Converts `[0, 255]` bytes into `[0.0, 1.0]`.
@@ -63,15 +63,43 @@ impl Resize {
     }
 }
 
-/// Image normalization and tensor layout conversion.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NormalizeAndPermute {
+/// Applies model-provided image normalization constants.
+///
+/// Backends apply this as `(pixel * scale - mean) / std` and produce f32 image
+/// data for later tensor layout conversion. The constants belong to the model
+/// artifact, not to the backend.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NormalizeImage {
+    /// Converts raw byte channels before mean/std normalization.
     pub scale: PixelScale,
+    /// Per-channel constants from the model's preprocessing metadata.
+    pub mean: [f32; 3],
+    /// Per-channel constants from the model's preprocessing metadata.
+    pub std: [f32; 3],
+}
+
+impl NormalizeImage {
+    pub fn new(scale: PixelScale, mean: [f32; 3], std: [f32; 3]) -> Self {
+        Self { scale, mean, std }
+    }
+
+    pub fn scale_only(scale: PixelScale) -> Self {
+        Self::new(scale, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+    }
+}
+
+/// Tensor layout conversion operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Permute {
     pub layout: TensorLayout,
 }
 
-impl NormalizeAndPermute {
-    pub fn new(scale: PixelScale, layout: TensorLayout) -> Self {
-        Self { scale, layout }
+impl Permute {
+    pub fn new(layout: TensorLayout) -> Self {
+        Self { layout }
+    }
+
+    pub fn nchw() -> Self {
+        Self::new(TensorLayout::Nchw)
     }
 }

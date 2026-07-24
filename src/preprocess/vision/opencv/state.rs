@@ -1,4 +1,4 @@
-use ndarray::Array4;
+use ndarray::{Array3, Array4};
 use opencv::core::{Mat, Vec3b};
 use opencv::prelude::MatTraitConst;
 
@@ -17,6 +17,7 @@ pub struct OpenCvVisionState {
     pub(super) source_width: i32,
     pub(super) source_height: i32,
     pub(super) scale_factor: [f32; 2],
+    pub(super) normalized_image: Option<Array3<f32>>,
     pub(super) tensor: Option<Array4<f32>>,
 }
 
@@ -56,6 +57,7 @@ impl OpenCvVisionState {
             source_width,
             source_height,
             scale_factor: [1.0, 1.0],
+            normalized_image: None,
             tensor: None,
         })
     }

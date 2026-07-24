@@ -1,5 +1,6 @@
 mod error;
-mod normalize_and_permute;
+mod normalize;
+mod permute;
 mod resize;
 mod state;
 
