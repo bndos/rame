@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 
+use crate::models::pp_doclayout::plus::decoder::PpDocLayoutPlusDecoder;
+use crate::models::pp_doclayout::plus::model::PpDocLayoutPlus;
+use crate::models::pp_doclayout::plus::onnx::processor::PpDocLayoutPlusOnnxProcessor;
 use crate::preprocess::vision::{Interpolation, NormalizeImage, Permute, Resize};
+use crate::runtime::{ArtifactParts, ModelArtifact};
+use crate::session::ort::OrtBackend;
 use crate::session::ort::OrtSessionConfig;
 
 /// PaddleX PP-DocLayout Plus ONNX artifact configuration.
@@ -100,6 +105,24 @@ impl Default for Preprocess {
             resize: Resize::fixed_square(800, Interpolation::Cubic),
             normalize: NormalizeImage::scale(NormalizeImage::INV_255),
             permute: Permute::nchw(),
+        }
+    }
+}
+
+impl ModelArtifact for Artifact {
+    type Architecture = PpDocLayoutPlus;
+    type Backend = OrtBackend;
+    type Processor = PpDocLayoutPlusOnnxProcessor;
+    type Decoder = PpDocLayoutPlusDecoder;
+
+    fn into_parts(
+        self,
+    ) -> ArtifactParts<OrtSessionConfig, PpDocLayoutPlusOnnxProcessor, PpDocLayoutPlusDecoder> {
+        ArtifactParts {
+            model_file: self.model_file,
+            session_config: self.session_config,
+            processor: PpDocLayoutPlusOnnxProcessor::new(self.inputs, self.preprocess),
+            decoder: PpDocLayoutPlusDecoder::new(self.outputs.boxes),
         }
     }
 }
