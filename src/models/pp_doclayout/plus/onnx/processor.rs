@@ -1,9 +1,6 @@
-use ndarray::Array2;
-
 use crate::RameResult;
 use crate::image::Image;
 use crate::models::pp_doclayout::plus::onnx::{Inputs, Preprocess};
-use crate::preprocess::vision::{NchwBatchBuilder, VisionTensorOutput};
 use crate::runtime::{ProcessedBatch, Processor};
 use crate::tensor::{TensorMap, TensorValue};
 
@@ -37,64 +34,31 @@ impl Processor for PpDocLayoutPlusOnnxProcessor {
             .add_op(self.preprocess.resize)
             .add_op(self.preprocess.normalize)
             .add_op(self.preprocess.permute);
-        let mut batch = PpDocLayoutInputBatch::new(images.len());
-        for image in images {
-            batch.push(pipeline.process(image)?)?;
-        }
+        let output = pipeline.process_many(images)?;
 
         Ok(ProcessedBatch {
-            len: images.len(),
-            inputs: batch.finish(&self.inputs)?,
-            contexts: vec![(); images.len()],
+            len: output.len(),
+            contexts: vec![(); output.len()],
+            inputs: bind_inputs(&self.inputs, output),
         })
     }
 }
 
-struct PpDocLayoutInputBatch {
-    image: NchwBatchBuilder,
-    im_shape: Array2<f32>,
-    scale_factor: Array2<f32>,
-}
-
-impl PpDocLayoutInputBatch {
-    fn new(len: usize) -> Self {
-        Self {
-            image: NchwBatchBuilder::new(len),
-            im_shape: Array2::zeros((len, 2)),
-            scale_factor: Array2::zeros((len, 2)),
-        }
-    }
-
-    fn push(&mut self, output: VisionTensorOutput) -> RameResult<()> {
-        let tensor_shape = output.tensor.shape();
-        let image_height = tensor_shape[2] as f32;
-        let image_width = tensor_shape[3] as f32;
-        let scale_factor = output.scale_factor;
-        let index = self.image.push(output.tensor)?;
-
-        self.im_shape[[index, 0]] = image_height;
-        self.im_shape[[index, 1]] = image_width;
-        self.scale_factor[[index, 0]] = scale_factor[0];
-        self.scale_factor[[index, 1]] = scale_factor[1];
-        Ok(())
-    }
-
-    fn finish(self, inputs: &Inputs) -> RameResult<TensorMap> {
-        let mut tensors = TensorMap::new();
-        tensors.insert(
-            inputs.image.clone(),
-            TensorValue::F32(self.image.finish()?.into_dyn()),
-        );
-        tensors.insert(
-            inputs.im_shape.clone(),
-            TensorValue::F32(self.im_shape.into_dyn()),
-        );
-        tensors.insert(
-            inputs.scale_factor.clone(),
-            TensorValue::F32(self.scale_factor.into_dyn()),
-        );
-        Ok(tensors)
-    }
+fn bind_inputs(inputs: &Inputs, output: crate::preprocess::vision::VisionBatchOutput) -> TensorMap {
+    let mut tensors = TensorMap::new();
+    tensors.insert(
+        inputs.image.clone(),
+        TensorValue::F32(output.tensor.into_dyn()),
+    );
+    tensors.insert(
+        inputs.im_shape.clone(),
+        TensorValue::F32(output.image_shapes.into_dyn()),
+    );
+    tensors.insert(
+        inputs.scale_factor.clone(),
+        TensorValue::F32(output.scale_factors.into_dyn()),
+    );
+    tensors
 }
 
 #[cfg(test)]

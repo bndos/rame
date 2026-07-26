@@ -3,17 +3,15 @@ compile_error!(
     "vision preprocessing currently requires the `opencv` feature; native preprocessing is not implemented yet"
 );
 
-mod batch;
 #[cfg(feature = "opencv")]
 mod opencv;
 mod ops;
 mod output;
 
-pub use batch::NchwBatchBuilder;
 #[cfg(feature = "opencv")]
 pub use opencv::OpenCvVisionBackend;
 pub use ops::{Interpolation, NormalizeImage, Permute, Resize, ResizeMode, TensorLayout};
-pub use output::VisionTensorOutput;
+pub use output::VisionBatchOutput;
 
 #[cfg(feature = "opencv")]
 pub type DefaultVisionBackend = OpenCvVisionBackend;
@@ -39,10 +37,12 @@ mod tests {
             .add_op(NormalizeImage::scale(NormalizeImage::INV_255))
             .add_op(Permute::nchw());
 
-        let output = pipeline.process(&image).unwrap();
+        let output = pipeline.process_many(std::slice::from_ref(&image)).unwrap();
 
         assert_eq!(output.tensor.shape(), &[1, 3, 2, 2]);
-        assert_eq!(output.scale_factor, [2.0, 2.0]);
+        assert_eq!(output.scale_factors.shape(), &[1, 2]);
+        assert_eq!(output.scale_factors[[0, 0]], 2.0);
+        assert_eq!(output.scale_factors[[0, 1]], 2.0);
         assert_eq!(output.tensor[[0, 0, 0, 0]], 1.0);
     }
 }

@@ -1,8 +1,19 @@
-use ndarray::Array4;
+use ndarray::{Array2, Array4};
 
-/// Tensor and image metadata produced by vision preprocessing.
+/// Batched image tensor and per-image metadata produced by vision preprocessing.
 #[derive(Debug, Clone)]
-pub struct VisionTensorOutput {
+pub struct VisionBatchOutput {
     pub tensor: Array4<f32>,
-    pub scale_factor: [f32; 2],
+    pub image_shapes: Array2<f32>,
+    pub scale_factors: Array2<f32>,
+}
+
+impl VisionBatchOutput {
+    pub fn len(&self) -> usize {
+        self.tensor.shape()[0]
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
