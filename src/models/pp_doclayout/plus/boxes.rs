@@ -4,6 +4,11 @@ use crate::RameResult;
 use crate::models::ModelError;
 use crate::tensor::{TensorMap, TensorValue};
 
+/// Per-image view of PP-DocLayout Plus detections.
+///
+/// PP-DocLayout Plus packs batched detections into one output tensor and reports
+/// how many rows belong to each image separately. The decoder uses this to work
+/// with one image's detections at a time.
 #[derive(Debug)]
 pub(super) struct BatchedBoxes<'a> {
     boxes: ArrayView2<'a, f32>,
@@ -11,6 +16,9 @@ pub(super) struct BatchedBoxes<'a> {
 }
 
 impl<'a> BatchedBoxes<'a> {
+    /// Reads the packed boxes output and its per-image row counts.
+    ///
+    /// Rows are expected to be `[class_id, score, x_min, y_min, x_max, y_max]`.
     pub(super) fn from_outputs(
         outputs: &'a TensorMap,
         boxes_name: &str,
