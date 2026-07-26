@@ -40,15 +40,15 @@ impl Decoder for PpDocLayoutPlusDecoder {
             return Ok(Vec::new());
         }
 
-        let boxes = BatchedBoxes::from_outputs(
+        let batched_boxes = BatchedBoxes::from_outputs(
             batch.outputs,
             &self.boxes_output_name,
             &self.boxes_num_output_name,
         )?;
-        let mut results = Vec::with_capacity(boxes.len());
+        let mut results = Vec::with_capacity(batched_boxes.len());
 
-        for index in 0..boxes.len() {
-            results.push(decode_boxes(boxes.item(index)));
+        for index in 0..batched_boxes.len() {
+            results.push(decode_boxes(batched_boxes.item(index)));
         }
 
         Ok(results)
