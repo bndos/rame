@@ -6,9 +6,11 @@ use crate::models::pp_doclayout::plus::boxes::BatchedBoxes;
 use crate::models::pp_doclayout::plus::labels::label_for_class_id;
 use crate::runtime::{DecodeBatch, Decoder};
 
-/// Decodes PP-DocLayout Plus boxes shaped `[N, 6]`.
+/// Decodes PP-DocLayout Plus detection outputs into layout regions.
 ///
-/// Rows follow PaddleOCR's postprocessed layout:
+/// The artifact config names the packed boxes output and the per-image
+/// `boxes_num` output used to split batched detections before decoding. Box rows
+/// follow PaddleOCR's postprocessed layout:
 /// `[class_id, score, x_min, y_min, x_max, y_max]`.
 /// Source: <https://github.com/PaddlePaddle/PaddleOCR/blob/main/ppocr/postprocess/picodet_postprocess.py#L251-L269>
 #[derive(Debug, Clone)]
