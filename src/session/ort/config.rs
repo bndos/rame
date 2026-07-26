@@ -47,12 +47,10 @@ impl OrtSessionConfig {
         builder = match self.execution_provider {
             OrtExecutionProvider::Cpu => builder,
             OrtExecutionProvider::Cuda { device_id } => builder
-                .with_execution_providers([
-                    ep::CUDA::default()
-                        .with_device_id(device_id)
-                        .build()
-                        .error_on_failure(),
-                ])
+                .with_execution_providers([ep::CUDA::default()
+                    .with_device_id(device_id)
+                    .build()
+                    .error_on_failure()])
                 .map_err(OrtError::from)?,
             OrtExecutionProvider::TensorRt { device_id, fp16 } => builder
                 .with_execution_providers([
@@ -89,6 +87,11 @@ impl OrtSessionConfig {
 pub(super) enum OrtExecutionProvider {
     #[default]
     Cpu,
-    Cuda { device_id: i32 },
-    TensorRt { device_id: i32, fp16: bool },
+    Cuda {
+        device_id: i32,
+    },
+    TensorRt {
+        device_id: i32,
+        fp16: bool,
+    },
 }

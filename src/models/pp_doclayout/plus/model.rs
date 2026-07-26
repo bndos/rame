@@ -24,7 +24,7 @@ where
     S: InferSession,
     D: Decoder<Output = LayoutResult, Context = P::Context>,
 {
-    fn detect_layout(&mut self, image: &Image) -> RameResult<LayoutResult> {
-        self.run(image)
+    fn detect_layout_many(&mut self, images: &[Image]) -> RameResult<Vec<LayoutResult>> {
+        self.run_many(images)
     }
 }

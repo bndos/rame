@@ -1,9 +1,10 @@
-use ndarray::Array2;
+use ndarray::{Array2, Array4, Axis, s};
 
 use crate::RameResult;
 use crate::image::Image;
+use crate::models::ModelError;
 use crate::models::pp_doclayout::plus::onnx::{Inputs, Preprocess};
-use crate::runtime::{Processed, Processor};
+use crate::runtime::{ProcessedBatch, Processor};
 use crate::tensor::{TensorMap, TensorValue};
 
 #[derive(Debug, Clone)]

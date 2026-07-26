@@ -82,12 +82,14 @@ impl Default for Inputs {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Outputs {
     pub boxes: String,
+    pub boxes_num: String,
 }
 
 impl Default for Outputs {
     fn default() -> Self {
         Self {
             boxes: "fetch_name_0".to_string(),
+            boxes_num: "fetch_name_1".to_string(),
         }
     }
 }
@@ -122,7 +124,7 @@ impl ModelArtifact for Artifact {
             model_file: self.model_file,
             session_config: self.session_config,
             processor: PpDocLayoutPlusOnnxProcessor::new(self.inputs, self.preprocess),
-            decoder: PpDocLayoutPlusDecoder::new(self.outputs.boxes),
+            decoder: PpDocLayoutPlusDecoder::new(self.outputs.boxes, self.outputs.boxes_num),
         }
     }
 }
