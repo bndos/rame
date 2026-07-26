@@ -3,11 +3,13 @@ compile_error!(
     "vision preprocessing currently requires the `opencv` feature; native preprocessing is not implemented yet"
 );
 
+mod batch;
 #[cfg(feature = "opencv")]
 mod opencv;
 mod ops;
 mod output;
 
+pub use batch::NchwBatchBuilder;
 #[cfg(feature = "opencv")]
 pub use opencv::OpenCvVisionBackend;
 pub use ops::{Interpolation, NormalizeImage, Permute, Resize, ResizeMode, TensorLayout};
