@@ -1,9 +1,7 @@
-use ndarray::Array2;
-
 use crate::RameResult;
 use crate::image::Image;
 use crate::models::pp_doclayout::plus::onnx::{Inputs, Preprocess};
-use crate::runtime::{Processed, Processor};
+use crate::runtime::{ProcessedBatch, Processor};
 use crate::tensor::{TensorMap, TensorValue};
 
 #[derive(Debug, Clone)]
@@ -23,42 +21,44 @@ impl Processor for PpDocLayoutPlusOnnxProcessor {
     type Source = Image;
     type Context = ();
 
-    fn process(&self, image: &Image) -> RameResult<Processed<Self::Context>> {
-        let output = crate::preprocess::vision::pipeline()
+    fn process_many(&self, images: &[Image]) -> RameResult<ProcessedBatch<Self::Context>> {
+        if images.is_empty() {
+            return Ok(ProcessedBatch {
+                len: 0,
+                inputs: TensorMap::new(),
+                contexts: Vec::new(),
+            });
+        }
+
+        let pipeline = crate::preprocess::vision::pipeline()
             .add_op(self.preprocess.resize)
             .add_op(self.preprocess.normalize)
-            .add_op(self.preprocess.permute)
-            .process(image)?;
+            .add_op(self.preprocess.permute);
+        let output = pipeline.process_many(images)?;
 
-        let tensor_shape = output.tensor.shape();
-        let image_height = tensor_shape[2] as f32;
-        let image_width = tensor_shape[3] as f32;
-
-        let mut inputs = TensorMap::new();
-        inputs.insert(
-            self.inputs.image.clone(),
-            TensorValue::F32(output.tensor.into_dyn()),
-        );
-        inputs.insert(
-            self.inputs.im_shape.clone(),
-            TensorValue::F32(row_tensor([image_height, image_width])),
-        );
-        inputs.insert(
-            self.inputs.scale_factor.clone(),
-            TensorValue::F32(row_tensor(output.scale_factor)),
-        );
-
-        Ok(Processed {
-            inputs,
-            context: (),
+        Ok(ProcessedBatch {
+            len: output.len(),
+            contexts: vec![(); output.len()],
+            inputs: bind_inputs(&self.inputs, output),
         })
     }
 }
 
-fn row_tensor(values: [f32; 2]) -> ndarray::ArrayD<f32> {
-    Array2::from_shape_vec((1, 2), values.to_vec())
-        .expect("two values always fit a [1, 2] tensor")
-        .into_dyn()
+fn bind_inputs(inputs: &Inputs, output: crate::preprocess::vision::VisionBatchOutput) -> TensorMap {
+    let mut tensors = TensorMap::new();
+    tensors.insert(
+        inputs.image.clone(),
+        TensorValue::F32(output.tensor.into_dyn()),
+    );
+    tensors.insert(
+        inputs.im_shape.clone(),
+        TensorValue::F32(output.image_shapes.into_dyn()),
+    );
+    tensors.insert(
+        inputs.scale_factor.clone(),
+        TensorValue::F32(output.scale_factors.into_dyn()),
+    );
+    tensors
 }
 
 #[cfg(test)]
@@ -82,8 +82,12 @@ mod tests {
             },
         );
 
-        let processed = processor.process(&image).unwrap();
+        let processed = processor
+            .process_many(std::slice::from_ref(&image))
+            .unwrap();
 
+        assert_eq!(processed.len, 1);
+        assert_eq!(processed.contexts.len(), 1);
         assert_eq!(processed.inputs.len(), 3);
         let TensorValue::F32(image) = &processed.inputs["image"] else {
             panic!("expected f32 image tensor");
@@ -103,5 +107,44 @@ mod tests {
         assert_eq!(scale_factor.shape(), &[1, 2]);
         assert_eq!(scale_factor[[0, 0]], 2.0);
         assert_eq!(scale_factor[[0, 1]], 2.0);
+    }
+
+    #[test]
+    fn creates_batched_paddle_onnx_inputs() {
+        let images = vec![
+            Image::from_rgb8(1, 1, vec![255, 127, 0]).unwrap(),
+            Image::from_rgb8(1, 1, vec![0, 127, 255]).unwrap(),
+        ];
+        let processor = PpDocLayoutPlusOnnxProcessor::new(
+            Inputs::default(),
+            Preprocess {
+                resize: Resize::fixed_square(2, Interpolation::Cubic),
+                ..Preprocess::default()
+            },
+        );
+
+        let processed = processor.process_many(&images).unwrap();
+
+        assert_eq!(processed.len, 2);
+        assert_eq!(processed.contexts.len(), 2);
+        let TensorValue::F32(image) = &processed.inputs["image"] else {
+            panic!("expected f32 image tensor");
+        };
+        let TensorValue::F32(im_shape) = &processed.inputs["im_shape"] else {
+            panic!("expected f32 im_shape tensor");
+        };
+        let TensorValue::F32(scale_factor) = &processed.inputs["scale_factor"] else {
+            panic!("expected f32 scale_factor tensor");
+        };
+
+        assert_eq!(image.shape(), &[2, 3, 2, 2]);
+        assert_eq!(image[[0, 0, 0, 0]], 1.0);
+        assert_eq!(image[[1, 2, 0, 0]], 1.0);
+        assert_eq!(im_shape.shape(), &[2, 2]);
+        assert_eq!(im_shape[[0, 0]], 2.0);
+        assert_eq!(im_shape[[1, 1]], 2.0);
+        assert_eq!(scale_factor.shape(), &[2, 2]);
+        assert_eq!(scale_factor[[0, 0]], 2.0);
+        assert_eq!(scale_factor[[1, 1]], 2.0);
     }
 }

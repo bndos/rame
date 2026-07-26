@@ -1,14 +1,17 @@
 use crate::RameResult;
 use crate::tensor::TensorMap;
 
-/// Model inputs produced by preprocessing, plus metadata needed by decoding.
+/// Batched model inputs produced by preprocessing, plus per-item decoding metadata.
 #[derive(Debug, Clone)]
-pub struct Processed<C = ()> {
+pub struct ProcessedBatch<C = ()> {
+    /// Number of source items represented by `inputs`.
+    pub len: usize,
+
     /// Named tensors passed to the inference session.
     pub inputs: TensorMap,
 
-    /// Preprocessing metadata passed through to the decoder.
-    pub context: C,
+    /// One preprocessing context per source item.
+    pub contexts: Vec<C>,
 }
 
 /// Converts a source input into backend-ready tensors.
@@ -19,5 +22,5 @@ pub trait Processor {
     /// Metadata produced during preprocessing and needed during decoding.
     type Context;
 
-    fn process(&self, source: &Self::Source) -> RameResult<Processed<Self::Context>>;
+    fn process_many(&self, sources: &[Self::Source]) -> RameResult<ProcessedBatch<Self::Context>>;
 }

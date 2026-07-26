@@ -6,31 +6,37 @@ use crate::RameResult;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::PreprocessOp;
 use crate::preprocess::vision::NormalizeImage;
-use crate::preprocess::vision::opencv::state::{OpenCvVisionBackend, OpenCvVisionState};
+use crate::preprocess::vision::opencv::state::{OpenCvVisionBackend, OpenCvVisionBatch};
 
 impl PreprocessOp<OpenCvVisionBackend> for NormalizeImage {
-    fn apply(&self, state: &mut OpenCvVisionState) -> RameResult<()> {
-        state.normalized_image = Some(normalize_image(&state.image, *self)?);
+    fn apply(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+        for item in &mut batch.items {
+            item.normalized_image = Some(self.normalize_mat(&item.image)?);
+        }
+
         Ok(())
     }
 }
 
-fn normalize_image(image: &Mat, op: NormalizeImage) -> RameResult<Array3<f32>> {
-    let size = image.size().map_err(PreprocessError::from)?;
-    let width = size.width as usize;
-    let height = size.height as usize;
-    let image = image.data_typed::<Vec3b>().map_err(PreprocessError::from)?;
-    let mut normalized = Array3::<f32>::zeros((height, width, 3));
+impl NormalizeImage {
+    fn normalize_mat(&self, image: &Mat) -> RameResult<Array3<f32>> {
+        let size = image.size().map_err(PreprocessError::from)?;
+        let width = size.width as usize;
+        let height = size.height as usize;
+        let image = image.data_typed::<Vec3b>().map_err(PreprocessError::from)?;
+        let mut normalized = Array3::<f32>::zeros((height, width, 3));
 
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = image[y * width + x];
-            for channel in 0..3 {
-                normalized[[y, x, channel]] =
-                    (pixel[channel] as f32 * op.scale - op.mean[channel]) / op.std[channel];
+        for y in 0..height {
+            for x in 0..width {
+                let pixel = image[y * width + x];
+                for channel in 0..3 {
+                    normalized[[y, x, channel]] = (pixel[channel] as f32 * self.scale
+                        - self.mean[channel])
+                        / self.std[channel];
+                }
             }
         }
-    }
 
-    Ok(normalized)
+        Ok(normalized)
+    }
 }

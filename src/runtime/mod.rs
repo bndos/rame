@@ -8,6 +8,6 @@ mod processor;
 pub use architecture::ModelArchitecture;
 pub use artifact::{ArtifactParts, ModelArtifact};
 pub use builder::{Missing, ModelBuilder};
-pub use decoder::Decoder;
+pub use decoder::{DecodeBatch, Decoder};
 pub use pipeline::InferencePipeline;
-pub use processor::{Processed, Processor};
+pub use processor::{ProcessedBatch, Processor};

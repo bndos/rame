@@ -10,6 +10,13 @@ pub type RameResult<T> = Result<T, RameError>;
 
 #[derive(Debug, Error)]
 pub enum RameError {
+    #[error("invalid {stage} batch length: expected {expected}, got {actual}")]
+    InvalidBatchLength {
+        stage: &'static str,
+        expected: usize,
+        actual: usize,
+    },
+
     #[error(transparent)]
     Image(#[from] ImageError),
 

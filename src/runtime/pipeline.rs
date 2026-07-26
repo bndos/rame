@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 
+use crate::RameError;
 use crate::RameResult;
-use crate::runtime::{Decoder, Processor};
+use crate::runtime::{DecodeBatch, Decoder, Processor};
 use crate::session::InferSession;
 
 /// Typed composition of processing, inference, and decoding stages.
@@ -29,9 +30,107 @@ where
     S: InferSession,
     D: Decoder<Context = P::Context>,
 {
-    pub fn run(&mut self, source: &P::Source) -> RameResult<D::Output> {
-        let processed = self.processor.process(source)?;
+    pub fn run_many(&mut self, sources: &[P::Source]) -> RameResult<Vec<D::Output>> {
+        if sources.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let processed = self.processor.process_many(sources)?;
+        if processed.len != sources.len() {
+            return Err(RameError::InvalidBatchLength {
+                stage: "processor output",
+                expected: sources.len(),
+                actual: processed.len,
+            });
+        }
+        if processed.contexts.len() != processed.len {
+            return Err(RameError::InvalidBatchLength {
+                stage: "processor contexts",
+                expected: processed.len,
+                actual: processed.contexts.len(),
+            });
+        }
+
         let outputs = self.session.run(processed.inputs)?;
-        self.decoder.decode(&outputs, &processed.context)
+        let decoded = self.decoder.decode_batch(DecodeBatch {
+            len: processed.len,
+            outputs: &outputs,
+            contexts: &processed.contexts,
+        })?;
+        if decoded.len() != processed.len {
+            return Err(RameError::InvalidBatchLength {
+                stage: "decoder output",
+                expected: processed.len,
+                actual: decoded.len(),
+            });
+        }
+
+        Ok(decoded)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::RameResult;
+    use crate::runtime::{DecodeBatch, Decoder, InferencePipeline, ProcessedBatch, Processor};
+    use crate::session::InferSession;
+    use crate::tensor::TensorMap;
+
+    #[derive(Debug, Clone, Copy)]
+    struct TestArchitecture;
+
+    struct EchoProcessor;
+
+    impl Processor for EchoProcessor {
+        type Source = i32;
+        type Context = i32;
+
+        fn process_many(&self, sources: &[Self::Source]) -> RameResult<ProcessedBatch<i32>> {
+            Ok(ProcessedBatch {
+                len: sources.len(),
+                inputs: TensorMap::new(),
+                contexts: sources.to_vec(),
+            })
+        }
+    }
+
+    struct CountingSession {
+        runs: usize,
+    }
+
+    impl InferSession for CountingSession {
+        fn run(&mut self, inputs: TensorMap) -> RameResult<TensorMap> {
+            self.runs += 1;
+            Ok(inputs)
+        }
+    }
+
+    struct EchoDecoder;
+
+    impl Decoder for EchoDecoder {
+        type Output = i32;
+        type Context = i32;
+
+        fn decode_batch(
+            &self,
+            batch: DecodeBatch<'_, Self::Context>,
+        ) -> RameResult<Vec<Self::Output>> {
+            Ok(batch.contexts.iter().map(|value| value * 2).collect())
+        }
+    }
+
+    #[test]
+    fn runs_batch_through_session_once() {
+        let mut pipeline = InferencePipeline::new(
+            TestArchitecture,
+            EchoProcessor,
+            CountingSession { runs: 0 },
+            EchoDecoder,
+        );
+
+        let outputs = pipeline.run_many(&[1, 2, 3]).unwrap();
+
+        assert_eq!(outputs, vec![2, 4, 6]);
+        assert_eq!(pipeline.session.runs, 1);
     }
 }

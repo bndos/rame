@@ -17,6 +17,8 @@ thiserror = "2"
 [features]
 huggingface = ["dep:hf-hub"]
 onnxruntime = ["dep:ort"]
+onnxruntime-cuda = ["onnxruntime", "ort/cuda"]
+onnxruntime-tensorrt = ["onnxruntime-cuda", "ort/tensorrt"]
 opencv = ["dep:opencv"]
 
 [[example]]

@@ -4,17 +4,31 @@ use std::sync::Arc;
 use crate::RameResult;
 
 /// Backend that owns preprocessing state creation and finalization.
-pub trait PreprocessBackend {
+pub trait PreprocessBackend: Sized {
     /// Raw input consumed by this preprocessing state.
     type Source;
-    /// Mutable state threaded through every preprocessing op.
-    type State;
-    /// Output produced after all preprocessing ops have run.
+    /// Mutable batch threaded through every preprocessing op.
+    type Batch;
+    /// Output produced after all preprocessing ops have run over a batch.
     type Output;
 
-    fn state(&self, source: &Self::Source) -> RameResult<Self::State>;
+    fn batch(&self, sources: &[Self::Source]) -> RameResult<Self::Batch>;
 
-    fn finish(&self, state: Self::State) -> RameResult<Self::Output>;
+    fn finish(&self, batch: Self::Batch) -> RameResult<Self::Output>;
+
+    fn process_many(
+        &self,
+        sources: &[Self::Source],
+        ops: &[Arc<dyn PreprocessOp<Self>>],
+    ) -> RameResult<Self::Output> {
+        let mut batch = self.batch(sources)?;
+
+        for op in ops {
+            op.apply(&mut batch)?;
+        }
+
+        self.finish(batch)
+    }
 }
 
 /// Executable preprocessing operation for a concrete backend.
@@ -22,7 +36,7 @@ pub trait PreprocessOp<B>: fmt::Debug + Send + Sync
 where
     B: PreprocessBackend,
 {
-    fn apply(&self, state: &mut B::State) -> RameResult<()>;
+    fn apply(&self, batch: &mut B::Batch) -> RameResult<()>;
 }
 
 /// Ordered preprocessing operation list.
@@ -55,12 +69,8 @@ where
         self.ops.len()
     }
 
-    pub fn process(&self, source: &B::Source) -> RameResult<B::Output> {
-        let mut state = self.backend.state(source)?;
-        for op in &self.ops {
-            op.apply(&mut state)?;
-        }
-        self.backend.finish(state)
+    pub fn process_many(&self, sources: &[B::Source]) -> RameResult<B::Output> {
+        self.backend.process_many(sources, &self.ops)
     }
 }
 
