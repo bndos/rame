@@ -33,9 +33,13 @@ impl Processor for PpDocLayoutPlusOnnxProcessor {
             });
         }
 
+        let pipeline = crate::preprocess::vision::pipeline()
+            .add_op(self.preprocess.resize)
+            .add_op(self.preprocess.normalize)
+            .add_op(self.preprocess.permute);
         let mut batch = PpDocLayoutInputBatch::new(images.len());
         for image in images {
-            batch.push(self.process_image(image)?)?;
+            batch.push(pipeline.process(image)?)?;
         }
 
         Ok(ProcessedBatch {
@@ -43,16 +47,6 @@ impl Processor for PpDocLayoutPlusOnnxProcessor {
             inputs: batch.finish(&self.inputs)?,
             contexts: vec![(); images.len()],
         })
-    }
-}
-
-impl PpDocLayoutPlusOnnxProcessor {
-    fn process_image(&self, image: &Image) -> RameResult<VisionTensorOutput> {
-        crate::preprocess::vision::pipeline()
-            .add_op(self.preprocess.resize)
-            .add_op(self.preprocess.normalize)
-            .add_op(self.preprocess.permute)
-            .process(image)
     }
 }
 
