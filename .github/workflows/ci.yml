@@ -9,19 +9,35 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RAME_CI_FEATURES: --features "huggingface onnxruntime opencv"
+      TAPLO_VERSION: 0.10.0
+      YAMLFMT_VERSION: v0.21.0
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2.9.1
       - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: benchmarks/uv.lock
+      - uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/taplo
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/go/bin/yamlfmt
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-formatters-taplo-${{ env.TAPLO_VERSION }}-yamlfmt-${{ env.YAMLFMT_VERSION }}
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libclang-dev libopencv-dev
       - name: Install formatting tools
-        run: cargo install taplo-cli --locked
-      - name: Install yamlfmt
-        run: go install github.com/google/yamlfmt/cmd/yamlfmt@latest
+        run: |
+          command -v taplo >/dev/null || cargo install taplo-cli --version "$TAPLO_VERSION" --locked
+          command -v yamlfmt >/dev/null || go install github.com/google/yamlfmt/cmd/yamlfmt@"$YAMLFMT_VERSION"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Check
         run: make check FEATURES="$RAME_CI_FEATURES"
