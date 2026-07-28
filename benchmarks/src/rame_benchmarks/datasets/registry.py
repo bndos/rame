@@ -9,17 +9,14 @@ class DatasetName(str, Enum):
 
 
 @dataclass(frozen=True)
-class Dataset:
+class BenchmarkDataset:
     name: DatasetName
     repo_id: str
     split: str
 
 
-def supported_dataset(name: DatasetName) -> Dataset:
-    match name:
-        case DatasetName.DOCLAYOUT_PUBLAYNET:
-            return Dataset(
-                name=name,
-                repo_id="creative-graphic-design/PubLayNet",
-                split="test",
-            )
+DOCLAYOUT_PUBLAYNET = BenchmarkDataset(
+    name=DatasetName.DOCLAYOUT_PUBLAYNET,
+    repo_id="creative-graphic-design/PubLayNet",
+    split="test",
+)

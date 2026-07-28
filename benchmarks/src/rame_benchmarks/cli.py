@@ -4,10 +4,7 @@ from typing import Annotated
 
 import typer
 
-from rame_benchmarks.datasets import (
-    DatasetName,
-    supported_dataset,
-)
+from rame_benchmarks.tasks import TaskName, get_tasks
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -18,11 +15,12 @@ def main() -> None:
 
 
 @app.command()
-def dataset(
+def task(
     name: Annotated[
-        DatasetName,
-        typer.Option("--dataset", help="Supported benchmark dataset."),
-    ] = DatasetName.DOCLAYOUT_PUBLAYNET,
+        TaskName,
+        typer.Option("--task", help="Supported benchmark task."),
+    ] = TaskName.LAYOUT,
 ) -> None:
-    dataset = supported_dataset(name)
-    typer.echo(f"{dataset.name.value}: {dataset.repo_id} ({dataset.split})")
+    [task] = get_tasks((name,))
+    datasets = ", ".join(dataset.name.value for dataset in task.datasets)
+    typer.echo(f"{task.name.value}: datasets={datasets}")

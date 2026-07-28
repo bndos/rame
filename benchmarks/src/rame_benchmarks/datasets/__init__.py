@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from rame_benchmarks.datasets.registry import (
-    Dataset,
+    DOCLAYOUT_PUBLAYNET,
+    BenchmarkDataset,
     DatasetName,
-    supported_dataset,
 )
 
 __all__ = [
-    "Dataset",
+    "BenchmarkDataset",
+    "DOCLAYOUT_PUBLAYNET",
     "DatasetName",
-    "supported_dataset",
 ]
