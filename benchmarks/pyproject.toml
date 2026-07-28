@@ -10,6 +10,13 @@ dependencies = [
   "typer>=0.20.0",
 ]
 
+[project.scripts]
+rame-bench = "rame_benchmarks.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project.optional-dependencies]
 paddle-cpu = ["paddlepaddle==3.3.0", "paddlex[ocr]>=3.4.0,<3.5.0"]
 paddle-cu126 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]>=3.4.0,<3.5.0"]
@@ -20,7 +27,6 @@ paddle-cu130 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]>=3.4.0,<3.5.0"]
 dev = ["ruff>=0.14.0"]
 
 [tool.uv]
-package = false
 conflicts = [
   [
     { extra = "paddle-cpu" },
