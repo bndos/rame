@@ -14,6 +14,13 @@ pub struct ModelBuilder<M, S = Missing, A = Missing> {
     artifact: A,
 }
 
+pub type BuiltModel<M, A> = InferencePipeline<
+    M,
+    <A as ModelArtifact>::Processor,
+    <<A as ModelArtifact>::Backend as SessionBackend>::Session,
+    <A as ModelArtifact>::Decoder,
+>;
+
 impl<M> ModelBuilder<M> {
     pub fn new(architecture: M) -> Self {
         Self {
@@ -51,11 +58,7 @@ where
     S: ResolveModelSource,
     A: ModelArtifact<Architecture = M>,
 {
-    pub fn build(
-        self,
-    ) -> RameResult<
-        InferencePipeline<M, A::Processor, <A::Backend as SessionBackend>::Session, A::Decoder>,
-    > {
+    pub fn build(self) -> RameResult<BuiltModel<M, A>> {
         let source = self.source.resolve_model_source()?;
         let parts = self.artifact.into_parts();
         let model_path = source.join_artifact_path(&parts.model_file)?;
