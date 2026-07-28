@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from typing import Annotated
-
 import typer
 
-from rame_benchmarks.tasks import TaskName, get_tasks
+from rame_benchmarks.tasks import get_tasks
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -15,12 +13,7 @@ def main() -> None:
 
 
 @app.command()
-def task(
-    name: Annotated[
-        TaskName,
-        typer.Option("--task", help="Supported benchmark task."),
-    ] = TaskName.LAYOUT,
-) -> None:
-    [task] = get_tasks((name,))
-    datasets = ", ".join(dataset.name.value for dataset in task.datasets)
-    typer.echo(f"{task.name.value}: datasets={datasets}")
+def tasks() -> None:
+    for task in get_tasks():
+        datasets = ", ".join(dataset.name.value for dataset in task.datasets)
+        typer.echo(f"{task.name.value}: datasets={datasets}")
