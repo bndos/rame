@@ -30,7 +30,6 @@ class AbsTask(ABC):
 
     def __init__(self) -> None:
         self.data_loaded = False
-        self.images: list[Path] = []
 
     @property
     def name(self) -> TaskName:

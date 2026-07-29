@@ -64,7 +64,4 @@ def run(
     for task in tasks:
         task_output_folder = data_folder / task.name.value
         task.load_data(task_output_folder)
-        typer.echo(
-            f"{model} on {task.name.value}: loaded {len(task.images)} samples "
-            f"(batch_size={batch_size})"
-        )
+        typer.echo(f"{model} on {task.name.value}: loaded (batch_size={batch_size})")

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
 
 from rame_benchmarks.models.model_meta import ModelMeta
 from rame_benchmarks.models.models_protocols import LayoutPrediction
+from rame_benchmarks.samples import ImageSample
 
 
 class PaddleLayoutDetectionModel:
@@ -31,14 +31,14 @@ class PaddleLayoutDetectionModel:
         return self._benchmark_model_meta
 
     def detect_layout_many(
-        self, images: Sequence[Path], *, batch_size: int
+        self, images: Sequence[ImageSample], *, batch_size: int
     ) -> Sequence[LayoutPrediction]:
         if not images:
             return []
 
         results = list(
             self._predictor.predict(
-                [str(image) for image in images],
+                [sample.as_ndarray() for sample in images],
                 batch_size=batch_size,
             )
         )

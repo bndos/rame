@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Protocol
 
 from rame_benchmarks.models.model_meta import ModelMeta
+from rame_benchmarks.samples import ImageSample
 
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ class LayoutModelProtocol(Protocol):
     def benchmark_model_meta(self) -> ModelMeta: ...
 
     def detect_layout_many(
-        self, images: Sequence[Path], *, batch_size: int
+        self, images: Sequence[ImageSample], *, batch_size: int
     ) -> Sequence[LayoutPrediction]: ...
 
 

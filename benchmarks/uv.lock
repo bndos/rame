@@ -1938,6 +1938,8 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "huggingface-hub" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-15-rame-benchmarks-paddle-cpu' and extra == 'extra-15-rame-benchmarks-paddle-cu126') or (extra == 'extra-15-rame-benchmarks-paddle-cpu' and extra == 'extra-15-rame-benchmarks-paddle-cu129') or (extra == 'extra-15-rame-benchmarks-paddle-cpu' and extra == 'extra-15-rame-benchmarks-paddle-cu130') or (extra == 'extra-15-rame-benchmarks-paddle-cu126' and extra == 'extra-15-rame-benchmarks-paddle-cu129') or (extra == 'extra-15-rame-benchmarks-paddle-cu126' and extra == 'extra-15-rame-benchmarks-paddle-cu130') or (extra == 'extra-15-rame-benchmarks-paddle-cu129' and extra == 'extra-15-rame-benchmarks-paddle-cu130')" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-15-rame-benchmarks-paddle-cpu' and extra == 'extra-15-rame-benchmarks-paddle-cu126') or (extra == 'extra-15-rame-benchmarks-paddle-cpu' and extra == 'extra-15-rame-benchmarks-paddle-cu129') or (extra == 'extra-15-rame-benchmarks-paddle-cpu' and extra == 'extra-15-rame-benchmarks-paddle-cu130') or (extra == 'extra-15-rame-benchmarks-paddle-cu126' and extra == 'extra-15-rame-benchmarks-paddle-cu129') or (extra == 'extra-15-rame-benchmarks-paddle-cu126' and extra == 'extra-15-rame-benchmarks-paddle-cu130') or (extra == 'extra-15-rame-benchmarks-paddle-cu129' and extra == 'extra-15-rame-benchmarks-paddle-cu130')" },
     { name = "pillow" },
     { name = "rich" },
     { name = "typer" },
@@ -1970,6 +1972,7 @@ dev = [
 requires-dist = [
     { name = "datasets", specifier = ">=3.0.0" },
     { name = "huggingface-hub", specifier = ">=1.0.1" },
+    { name = "numpy", specifier = ">=2.4.6" },
     { name = "paddlepaddle", marker = "extra == 'paddle-cpu'", specifier = "==3.3.0", index = "https://www.paddlepaddle.org.cn/packages/stable/cpu/", conflict = { package = "rame-benchmarks", extra = "paddle-cpu" } },
     { name = "paddlepaddle-gpu", marker = "extra == 'paddle-cu126'", specifier = "==3.3.0", index = "https://www.paddlepaddle.org.cn/packages/stable/cu126/", conflict = { package = "rame-benchmarks", extra = "paddle-cu126" } },
     { name = "paddlepaddle-gpu", marker = "extra == 'paddle-cu129'", specifier = "==3.3.0", index = "https://www.paddlepaddle.org.cn/packages/stable/cu129/", conflict = { package = "rame-benchmarks", extra = "paddle-cu129" } },
