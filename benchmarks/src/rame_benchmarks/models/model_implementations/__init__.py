@@ -3,12 +3,12 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 
-from rame_benchmarks.models.model_meta import ModelMeta, ModelName
-from rame_benchmarks.models.models_protocols import BenchmarkModel
+from rame_benchmarks.models.model_loader import ModelLoader
+from rame_benchmarks.models.model_meta import ModelName
 
 
-def get_all_model_meta_objects() -> dict[ModelName, ModelMeta[BenchmarkModel]]:
-    model_meta_objects = []
+def get_all_model_loaders() -> dict[ModelName, ModelLoader]:
+    model_loaders = []
     package_dir = Path(__file__).parent
 
     for file_path in package_dir.glob("*.py"):
@@ -19,12 +19,10 @@ def get_all_model_meta_objects() -> dict[ModelName, ModelMeta[BenchmarkModel]]:
 
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-            if isinstance(attr, ModelMeta):
-                model_meta_objects.append(attr)
+            if isinstance(attr, ModelLoader):
+                model_loaders.append(attr)
 
-    return {meta.name: meta for meta in model_meta_objects}
+    return {loader.model_meta.name: loader for loader in model_loaders}
 
 
-MODEL_REGISTRY: dict[ModelName, ModelMeta[BenchmarkModel]] = (
-    get_all_model_meta_objects()
-)
+MODEL_REGISTRY: dict[ModelName, ModelLoader] = get_all_model_loaders()

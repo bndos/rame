@@ -15,7 +15,7 @@ class LayoutPrediction:
 
 class LayoutModelProtocol(Protocol):
     @property
-    def benchmark_model_meta(self) -> ModelMeta[LayoutModelProtocol]: ...
+    def benchmark_model_meta(self) -> ModelMeta: ...
 
     def detect_layout_many(
         self, images: Sequence[Path]
