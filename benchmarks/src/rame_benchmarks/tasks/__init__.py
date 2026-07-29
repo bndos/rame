@@ -4,19 +4,27 @@ from rame_benchmarks.tasks.abstask import (
     AbsTask,
     DatasetMetadata,
     TaskMetadata,
+    TaskMetric,
     TaskName,
+    TaskResult,
 )
-from rame_benchmarks.tasks.layout import LayoutMicroTask, LayoutTask, LayoutTaskBase
+from rame_benchmarks.tasks.layout import (
+    LayoutTaskBase,
+    LayoutThroughputMicroTask,
+    LayoutThroughputTask,
+)
 from rame_benchmarks.tasks.registry import TASKS, get_tasks
 
 __all__ = [
     "AbsTask",
     "DatasetMetadata",
-    "LayoutMicroTask",
-    "LayoutTask",
     "LayoutTaskBase",
+    "LayoutThroughputMicroTask",
+    "LayoutThroughputTask",
     "TASKS",
+    "TaskMetric",
     "TaskMetadata",
     "TaskName",
+    "TaskResult",
     "get_tasks",
 ]

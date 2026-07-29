@@ -1,22 +1,27 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from datasets import Image, load_dataset
 
+from rame_benchmarks.models.models_protocols import BenchmarkModel
 from rame_benchmarks.samples import ImageSample
 from rame_benchmarks.tasks.abstask import (
     AbsTask,
     DatasetMetadata,
     TaskMetadata,
+    TaskMetric,
     TaskName,
+    TaskResult,
 )
+from rame_benchmarks.utils import chunked
 
 
 class LayoutTaskBase(AbsTask):
     metadata = TaskMetadata(
-        name=TaskName.LAYOUT,
+        name=TaskName.LAYOUT_THROUGHPUT,
         dataset=DatasetMetadata(
             path="creative-graphic-design/PubLayNet",
             split="test",
@@ -61,14 +66,40 @@ class LayoutTaskBase(AbsTask):
         sample.write_original_bytes(image_bytes)
         return sample
 
+    def _evaluate(self, model: BenchmarkModel, *, batch_size: int) -> TaskResult:
+        if batch_size <= 0:
+            raise ValueError("batch_size must be greater than zero")
+        if not self.data_loaded:
+            raise RuntimeError("task data must be loaded before evaluation")
 
-class LayoutTask(LayoutTaskBase):
+        batches = list(chunked(self.image_samples, batch_size))
+        started = perf_counter()
+        for batch in batches:
+            model.detect_layout_many(batch, batch_size=batch_size)
+        elapsed_s = perf_counter() - started
+
+        return TaskResult(
+            task_name=self.name,
+            metrics=(
+                TaskMetric("samples", len(self.image_samples)),
+                TaskMetric("batches", len(batches)),
+                TaskMetric("elapsed", elapsed_s, "s"),
+                TaskMetric(
+                    "throughput",
+                    len(self.image_samples) / elapsed_s,
+                    "samples/s",
+                ),
+            ),
+        )
+
+
+class LayoutThroughputTask(LayoutTaskBase):
     pass
 
 
-class LayoutMicroTask(LayoutTaskBase):
+class LayoutThroughputMicroTask(LayoutTaskBase):
     metadata = TaskMetadata(
-        name=TaskName.LAYOUT_MICRO,
+        name=TaskName.LAYOUT_THROUGHPUT_MICRO,
         dataset=DatasetMetadata(
             path="creative-graphic-design/PubLayNet",
             split="test",

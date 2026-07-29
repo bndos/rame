@@ -5,7 +5,8 @@ from typing import Annotated
 
 import typer
 
-from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model_metas
+from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model, get_model_metas
+from rame_benchmarks.reporting import print_task_results
 from rame_benchmarks.tasks import TaskName, get_tasks
 
 app = typer.Typer(no_args_is_help=True)
@@ -60,8 +61,16 @@ def run(
 ) -> None:
     tasks = get_tasks(tuple(task_names) if task_names else None)
     data_folder = output_folder / "data"
+    loaded_model = get_model(model)
+    results = []
 
     for task in tasks:
         task_output_folder = data_folder / task.name.value
-        task.load_data(task_output_folder)
-        typer.echo(f"{model} on {task.name.value}: loaded (batch_size={batch_size})")
+        result = task.evaluate(
+            loaded_model,
+            task_output_folder,
+            batch_size=batch_size,
+        )
+        results.append(result)
+
+    print_task_results(model, results)

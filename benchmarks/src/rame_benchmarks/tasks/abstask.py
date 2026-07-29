@@ -6,10 +6,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from rame_benchmarks.models.models_protocols import BenchmarkModel
+
 
 class TaskName(str, Enum):
-    LAYOUT = "layout"
-    LAYOUT_MICRO = "layout-micro"
+    LAYOUT_THROUGHPUT = "layout-throughput"
+    LAYOUT_THROUGHPUT_MICRO = "layout-throughput-micro"
 
 
 @dataclass(frozen=True)
@@ -25,6 +27,19 @@ class TaskMetadata:
     dataset: DatasetMetadata
 
 
+@dataclass(frozen=True)
+class TaskMetric:
+    name: str
+    value: float | int
+    unit: str | None = None
+
+
+@dataclass(frozen=True)
+class TaskResult:
+    task_name: TaskName
+    metrics: tuple[TaskMetric, ...]
+
+
 class AbsTask(ABC):
     metadata: TaskMetadata
 
@@ -37,3 +52,14 @@ class AbsTask(ABC):
 
     @abstractmethod
     def load_data(self, output_dir: Path, **kwargs: Any) -> None: ...
+
+    def evaluate(
+        self, model: BenchmarkModel, output_dir: Path, *, batch_size: int
+    ) -> TaskResult:
+        if not self.data_loaded:
+            self.load_data(output_dir)
+
+        return self._evaluate(model, batch_size=batch_size)
+
+    @abstractmethod
+    def _evaluate(self, model: BenchmarkModel, *, batch_size: int) -> TaskResult: ...
