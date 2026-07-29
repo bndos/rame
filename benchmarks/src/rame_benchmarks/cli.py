@@ -13,6 +13,6 @@ def main() -> None:
 
 
 @app.command()
-def tasks() -> None:
+def available_tasks() -> None:
     for task in get_tasks():
         typer.echo(task.name.value)
