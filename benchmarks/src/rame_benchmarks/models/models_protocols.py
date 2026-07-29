@@ -3,10 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from rame_benchmarks.models.registry import ModelMeta
+from rame_benchmarks.models.model_meta import ModelMeta
 
 
 @dataclass(frozen=True)
@@ -16,7 +15,7 @@ class LayoutPrediction:
 
 class LayoutModelProtocol(Protocol):
     @property
-    def benchmark_model_meta(self) -> ModelMeta: ...
+    def benchmark_model_meta(self) -> ModelMeta[LayoutModelProtocol]: ...
 
     def detect_layout_many(
         self, images: Sequence[Path]
