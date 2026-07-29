@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from rame_benchmarks.models.models_protocols import BenchmarkModel
 
 
 class ModelName(str, Enum):
@@ -13,6 +18,15 @@ class ModelName(str, Enum):
 class ModelMeta:
     name: ModelName
     description: str
+    loader: Callable[..., BenchmarkModel] | None = None
+    loader_kwargs: dict[str, Any] | None = None
+
+    def load_model(self, **kwargs: Any) -> BenchmarkModel:
+        if self.loader is None:
+            raise ValueError(f"model is not implemented: {self.name.value}")
+
+        loader_kwargs = self.loader_kwargs or {}
+        return self.loader(**loader_kwargs, **kwargs)
 
 
 MODEL_REGISTRY: tuple[ModelMeta, ...] = (
