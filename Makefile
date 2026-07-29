@@ -14,6 +14,7 @@ fmt:
 	cargo fmt
 	taplo format Cargo.toml benchmarks/pyproject.toml
 	yamlfmt .github/workflows
+	cd benchmarks && uv run ruff check --fix --select I .
 	cd benchmarks && uv run ruff format .
 
 .PHONY: check
