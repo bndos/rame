@@ -15,5 +15,4 @@ def main() -> None:
 @app.command()
 def tasks() -> None:
     for task in get_tasks():
-        datasets = ", ".join(dataset.name.value for dataset in task.datasets)
-        typer.echo(f"{task.name.value}: datasets={datasets}")
+        typer.echo(task.name.value)

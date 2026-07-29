@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from rame_benchmarks.tasks.registry import (
-    TASKS,
-    BenchmarkTask,
-    LayoutTask,
-    TaskName,
-    get_tasks,
-)
+from rame_benchmarks.tasks.abstask import AbsTask, TaskName
+from rame_benchmarks.tasks.layout import LayoutTask
+from rame_benchmarks.tasks.registry import TASKS, get_tasks
 
 __all__ = [
-    "BenchmarkTask",
+    "AbsTask",
     "LayoutTask",
     "TASKS",
     "TaskName",
