@@ -13,7 +13,7 @@ from rame_benchmarks.tasks.abstask import (
 )
 
 
-class LayoutTask(AbsTask):
+class LayoutTaskBase(AbsTask):
     metadata = TaskMetadata(
         name=TaskName.LAYOUT,
         dataset=DatasetMetadata(
@@ -21,14 +21,9 @@ class LayoutTask(AbsTask):
             split="test",
         ),
     )
+    _sample_range: range | None = None
 
-    def load_data(
-        self,
-        output_dir: Path,
-        *,
-        limit: int | None = None,
-        offset: int = 0,
-    ) -> None:
+    def load_data(self, output_dir: Path, **kwargs: object) -> None:
         if self.data_loaded:
             return
 
@@ -41,10 +36,24 @@ class LayoutTask(AbsTask):
             "image", Image(decode=False)
         )
 
-        start = offset
-        end = len(ds) if limit is None else min(offset + limit, len(ds))
-        ds = ds.select(range(start, end))
+        if self._sample_range is not None:
+            ds = ds.select(self._sample_range)
 
         output_dir.mkdir(parents=True, exist_ok=True)
         self.images = [write_image(record, output_dir) for record in ds]
         self.data_loaded = True
+
+
+class LayoutTask(LayoutTaskBase):
+    pass
+
+
+class LayoutMicroTask(LayoutTaskBase):
+    metadata = TaskMetadata(
+        name=TaskName.LAYOUT_MICRO,
+        dataset=DatasetMetadata(
+            path="creative-graphic-design/PubLayNet",
+            split="test",
+        ),
+    )
+    _sample_range = range(128)

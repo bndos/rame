@@ -8,6 +8,7 @@ from pathlib import Path
 
 class TaskName(str, Enum):
     LAYOUT = "layout"
+    LAYOUT_MICRO = "layout-micro"
 
 
 @dataclass(frozen=True)
@@ -35,10 +36,4 @@ class AbsTask(ABC):
         return self.metadata.name
 
     @abstractmethod
-    def load_data(
-        self,
-        output_dir: Path,
-        *,
-        limit: int | None = None,
-        offset: int = 0,
-    ) -> None: ...
+    def load_data(self, output_dir: Path, **kwargs: object) -> None: ...
