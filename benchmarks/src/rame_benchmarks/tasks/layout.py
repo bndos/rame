@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from datasets import Image, load_dataset
 
@@ -23,7 +24,7 @@ class LayoutTaskBase(AbsTask):
     )
     _sample_range: range | None = None
 
-    def load_data(self, output_dir: Path, **kwargs: object) -> None:
+    def load_data(self, output_dir: Path, **kwargs: Any) -> None:
         if self.data_loaded:
             return
 

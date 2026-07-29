@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 ModelT = TypeVar("ModelT")
+
+
+class ModelLoader(Protocol[ModelT]):
+    def __call__(self, model_meta: ModelMeta[ModelT], **kwargs: Any) -> ModelT: ...
 
 
 class ModelName(str, Enum):
@@ -17,7 +20,7 @@ class ModelName(str, Enum):
 class ModelMeta(Generic[ModelT]):
     name: ModelName
     description: str
-    loader: Callable[..., ModelT] | None = None
+    loader: ModelLoader[ModelT] | None = None
     loader_kwargs: dict[str, Any] | None = None
 
     def load_model(self, **kwargs: Any) -> ModelT:
@@ -25,4 +28,4 @@ class ModelMeta(Generic[ModelT]):
             raise ValueError(f"model is not implemented: {self.name.value}")
 
         loader_kwargs = self.loader_kwargs or {}
-        return self.loader(**loader_kwargs, **kwargs)
+        return self.loader(self, **loader_kwargs, **kwargs)

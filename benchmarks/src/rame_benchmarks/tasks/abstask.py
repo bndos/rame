@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 
 class TaskName(str, Enum):
@@ -36,4 +37,4 @@ class AbsTask(ABC):
         return self.metadata.name
 
     @abstractmethod
-    def load_data(self, output_dir: Path, **kwargs: object) -> None: ...
+    def load_data(self, output_dir: Path, **kwargs: Any) -> None: ...
