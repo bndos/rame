@@ -8,6 +8,7 @@ from rame_benchmarks.models.models_protocols import (
 )
 from rame_benchmarks.models.registry import (
     MODEL_REGISTRY,
+    get_model,
     get_model_meta,
     get_model_metas,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "MODEL_REGISTRY",
     "ModelMeta",
     "ModelName",
+    "get_model",
     "get_model_meta",
     "get_model_metas",
 ]
