@@ -51,6 +51,12 @@ def run(
         Path,
         typer.Option("--output-folder", help="Output directory for benchmark results."),
     ] = Path("results"),
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size", help="Number of samples per model prediction batch."
+        ),
+    ] = 32,
 ) -> None:
     tasks = get_tasks(tuple(task_names) if task_names else None)
     data_folder = output_folder / "data"
@@ -58,4 +64,7 @@ def run(
     for task in tasks:
         task_output_folder = data_folder / task.name.value
         task.load_data(task_output_folder)
-        typer.echo(f"{model} on {task.name.value}: loaded {len(task.images)} samples")
+        typer.echo(
+            f"{model} on {task.name.value}: loaded {len(task.images)} samples "
+            f"(batch_size={batch_size})"
+        )
