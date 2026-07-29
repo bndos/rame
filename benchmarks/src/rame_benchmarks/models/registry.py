@@ -27,9 +27,16 @@ MODEL_REGISTRY: tuple[ModelMeta, ...] = (
 )
 
 
+def get_model_meta(name: ModelName) -> ModelMeta:
+    for model in MODEL_REGISTRY:
+        if model.name == name:
+            return model
+
+    raise ValueError(f"unsupported model: {name.value}")
+
+
 def get_model_metas(names: tuple[ModelName, ...] | None = None) -> list[ModelMeta]:
     if names is None:
         return list(MODEL_REGISTRY)
 
-    selected = set(names)
-    return [model for model in MODEL_REGISTRY if model.name in selected]
+    return [get_model_meta(name) for name in names]
