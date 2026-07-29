@@ -5,6 +5,7 @@ from typing import Annotated
 
 import typer
 
+from rame_benchmarks.models import ModelName, get_model_metas
 from rame_benchmarks.tasks import TaskName, get_tasks
 
 app = typer.Typer(no_args_is_help=True)
@@ -22,9 +23,15 @@ def available_tasks() -> None:
 
 
 @app.command()
+def available_models() -> None:
+    for model in get_model_metas():
+        typer.echo(model.name.value)
+
+
+@app.command()
 def run(
     model: Annotated[
-        str,
+        ModelName,
         typer.Option("-m", "--model", help="Model to run."),
     ],
     task_names: Annotated[
@@ -42,4 +49,6 @@ def run(
     for task in tasks:
         task_output_folder = data_folder / task.name.value
         task.load_data(task_output_folder)
-        typer.echo(f"{model} on {task.name.value}: loaded {len(task.images)} samples")
+        typer.echo(
+            f"{model.value} on {task.name.value}: loaded {len(task.images)} samples"
+        )
