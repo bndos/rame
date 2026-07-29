@@ -5,16 +5,22 @@ from pathlib import Path
 from datasets import Image, load_dataset
 
 from rame_benchmarks.tasks._images import write_image
-from rame_benchmarks.tasks.abstask import AbsTask, TaskName
+from rame_benchmarks.tasks.abstask import (
+    AbsTask,
+    DatasetMetadata,
+    TaskMetadata,
+    TaskName,
+)
 
 
 class LayoutTask(AbsTask):
-    name = TaskName.LAYOUT
-
-    _repo_id = "creative-graphic-design/PubLayNet"
-    _split = "test"
-
-    images: list[Path]
+    metadata = TaskMetadata(
+        name=TaskName.LAYOUT,
+        dataset=DatasetMetadata(
+            path="creative-graphic-design/PubLayNet",
+            split="test",
+        ),
+    )
 
     def load_data(
         self,
@@ -26,7 +32,11 @@ class LayoutTask(AbsTask):
         if self.data_loaded:
             return
 
-        ds = load_dataset(self._repo_id, split=self._split)
+        ds = load_dataset(
+            self.metadata.dataset.path,
+            split=self.metadata.dataset.split,
+            revision=self.metadata.dataset.revision,
+        )
         ds = ds.select_columns(["file_name", "image"]).cast_column(
             "image", Image(decode=False)
         )

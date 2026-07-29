@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -9,9 +10,29 @@ class TaskName(str, Enum):
     LAYOUT = "layout"
 
 
-class AbsTask(ABC):
+@dataclass(frozen=True)
+class DatasetMetadata:
+    path: str
+    split: str
+    revision: str | None = None
+
+
+@dataclass(frozen=True)
+class TaskMetadata:
     name: TaskName
-    data_loaded: bool = False
+    dataset: DatasetMetadata
+
+
+class AbsTask(ABC):
+    metadata: TaskMetadata
+
+    def __init__(self) -> None:
+        self.data_loaded = False
+        self.images: list[Path] = []
+
+    @property
+    def name(self) -> TaskName:
+        return self.metadata.name
 
     @abstractmethod
     def load_data(
