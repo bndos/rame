@@ -3,6 +3,9 @@ name = "rame"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = ["benchmarks/rame-bench"]
+
 [lib]
 name = "rame"
 path = "src/lib.rs"
