@@ -13,11 +13,11 @@ pub trait LayoutModel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Model {
+pub enum ModelName {
     RamePpDocLayoutPlusOnnx,
 }
 
-impl Model {
+impl ModelName {
     pub const ALL: &'static [Self] = &[Self::RamePpDocLayoutPlusOnnx];
 
     pub fn as_str(self) -> &'static str {
@@ -26,37 +26,37 @@ impl Model {
         }
     }
 
-    pub fn load_layout_model(self) -> BenchResult<Box<dyn LayoutModel>> {
+    pub fn load_layout(self) -> BenchResult<Box<dyn LayoutModel>> {
         match self {
             Self::RamePpDocLayoutPlusOnnx => Ok(Box::new(PpDocLayoutPlusOnnx::new())),
         }
     }
 }
 
-impl fmt::Display for Model {
+impl fmt::Display for ModelName {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseModelError(String);
+pub struct ParseModelNameError(String);
 
-impl fmt::Display for ParseModelError {
+impl fmt::Display for ParseModelNameError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "unknown model `{}`", self.0)
     }
 }
 
-impl std::error::Error for ParseModelError {}
+impl std::error::Error for ParseModelNameError {}
 
-impl FromStr for Model {
-    type Err = ParseModelError;
+impl FromStr for ModelName {
+    type Err = ParseModelNameError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             RAME_PP_DOCLAYOUT_PLUS_ONNX => Ok(Self::RamePpDocLayoutPlusOnnx),
-            _ => Err(ParseModelError(value.to_string())),
+            _ => Err(ParseModelNameError(value.to_string())),
         }
     }
 }

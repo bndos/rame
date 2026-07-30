@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 use crate::error::BenchResult;
-use crate::models::Model;
+use crate::models::ModelName;
 use crate::tasks::{BenchmarkTask, LayoutThroughputTask, Task};
 
 #[derive(Debug, Parser)]
@@ -18,7 +18,7 @@ enum Command {
     Models,
     Run {
         #[arg(long)]
-        model: Model,
+        model: ModelName,
         #[arg(long)]
         task: Task,
         #[arg(long)]
@@ -45,7 +45,7 @@ pub fn run() -> BenchResult<()> {
 }
 
 fn list_models() {
-    for model in Model::ALL {
+    for model in ModelName::ALL {
         println!("{model}");
     }
 }
@@ -56,10 +56,10 @@ fn list_tasks() {
     }
 }
 
-fn run_task(model: Model, task: Task, dataset: PathBuf, batch_size: usize) -> BenchResult<()> {
+fn run_task(model: ModelName, task: Task, dataset: PathBuf, batch_size: usize) -> BenchResult<()> {
     let report = match task {
         Task::LayoutThroughput => {
-            let mut model = model.load_layout_model()?;
+            let mut model = model.load_layout()?;
             LayoutThroughputTask::new(dataset, batch_size)?.evaluate(model.as_mut())?
         }
     };
