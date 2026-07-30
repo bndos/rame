@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 use crate::error::BenchResult;
 use crate::models::Model;
-use crate::tasks::Task;
+use crate::tasks::{BenchmarkTask, LayoutThroughputTask, Task};
 
 #[derive(Debug, Parser)]
 #[command(name = "rame-bench")]
@@ -15,12 +16,28 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     Models,
+    Run {
+        #[arg(long)]
+        model: Model,
+        #[arg(long)]
+        task: Task,
+        #[arg(long)]
+        dataset: PathBuf,
+        #[arg(long, default_value_t = 1)]
+        batch_size: usize,
+    },
     Tasks,
 }
 
 pub fn run() -> BenchResult<()> {
     match Cli::parse().command {
         Command::Models => list_models(),
+        Command::Run {
+            model,
+            task,
+            dataset,
+            batch_size,
+        } => run_task(model, task, dataset, batch_size)?,
         Command::Tasks => list_tasks(),
     }
 
@@ -37,4 +54,18 @@ fn list_tasks() {
     for task in Task::ALL {
         println!("{task}");
     }
+}
+
+fn run_task(model: Model, task: Task, dataset: PathBuf, batch_size: usize) -> BenchResult<()> {
+    let report = match task {
+        Task::LayoutThroughput => {
+            let mut model = model.load_layout_model()?;
+            LayoutThroughputTask::new(dataset, batch_size)?.evaluate(model.as_mut())?
+        }
+    };
+
+    report.write_json(std::io::stdout().lock())?;
+    println!();
+
+    Ok(())
 }
