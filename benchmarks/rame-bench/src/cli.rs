@@ -29,12 +29,12 @@ pub fn run() -> BenchResult<()> {
 
 fn list_models() {
     for model in Model::ALL {
-        println!("{}", model.as_str());
+        println!("{model}");
     }
 }
 
 fn list_tasks() {
     for task in Task::ALL {
-        println!("{}", task.as_str());
+        println!("{task}");
     }
 }
