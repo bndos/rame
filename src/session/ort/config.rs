@@ -1,4 +1,3 @@
-use ort::ep;
 use ort::session::builder::SessionBuilder;
 
 use crate::session::ort::OrtError;
@@ -22,11 +21,13 @@ impl OrtSessionConfig {
         self
     }
 
+    #[cfg(feature = "onnxruntime-cuda")]
     pub fn cuda(mut self, device_id: i32) -> Self {
         self.execution_provider = OrtExecutionProvider::Cuda { device_id };
         self
     }
 
+    #[cfg(feature = "onnxruntime-tensorrt")]
     pub fn tensorrt(mut self, device_id: i32) -> Self {
         self.execution_provider = OrtExecutionProvider::TensorRt {
             device_id,
@@ -35,6 +36,7 @@ impl OrtSessionConfig {
         self
     }
 
+    #[cfg(feature = "onnxruntime-tensorrt")]
     pub fn tensorrt_fp16(mut self, device_id: i32) -> Self {
         self.execution_provider = OrtExecutionProvider::TensorRt {
             device_id,
@@ -46,20 +48,22 @@ impl OrtSessionConfig {
     pub(super) fn apply(self, mut builder: SessionBuilder) -> Result<SessionBuilder, OrtError> {
         builder = match self.execution_provider {
             OrtExecutionProvider::Cpu => builder,
+            #[cfg(feature = "onnxruntime-cuda")]
             OrtExecutionProvider::Cuda { device_id } => builder
-                .with_execution_providers([ep::CUDA::default()
+                .with_execution_providers([ort::ep::CUDA::default()
                     .with_device_id(device_id)
                     .build()
                     .error_on_failure()])
                 .map_err(OrtError::from)?,
+            #[cfg(feature = "onnxruntime-tensorrt")]
             OrtExecutionProvider::TensorRt { device_id, fp16 } => builder
                 .with_execution_providers([
-                    ep::TensorRT::default()
+                    ort::ep::TensorRT::default()
                         .with_device_id(device_id)
                         .with_fp16(fp16)
                         .build()
                         .error_on_failure(),
-                    ep::CUDA::default()
+                    ort::ep::CUDA::default()
                         .with_device_id(device_id)
                         .build()
                         .error_on_failure(),
@@ -87,11 +91,8 @@ impl OrtSessionConfig {
 pub(super) enum OrtExecutionProvider {
     #[default]
     Cpu,
-    Cuda {
-        device_id: i32,
-    },
-    TensorRt {
-        device_id: i32,
-        fp16: bool,
-    },
+    #[cfg(feature = "onnxruntime-cuda")]
+    Cuda { device_id: i32 },
+    #[cfg(feature = "onnxruntime-tensorrt")]
+    TensorRt { device_id: i32, fp16: bool },
 }
