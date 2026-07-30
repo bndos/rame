@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+use crate::error::BenchResult;
 use crate::models::Model;
 
 #[derive(Debug, Parser)]
@@ -15,7 +16,7 @@ enum Command {
     Models,
 }
 
-pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run() -> BenchResult<()> {
     match Cli::parse().command {
         Command::Models => list_models(),
     }

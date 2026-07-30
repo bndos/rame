@@ -1,5 +1,8 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+use clap::ValueEnum;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 pub enum Model {
+    #[value(name = "rame-pp-doclayout-plus-onnx")]
     RamePpDocLayoutPlusOnnx,
 }
 

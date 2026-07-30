@@ -1,8 +1,9 @@
 mod cli;
 pub mod datasets;
+pub mod error;
 pub mod models;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> error::BenchResult<()> {
     cli::run()?;
     Ok(())
 }
