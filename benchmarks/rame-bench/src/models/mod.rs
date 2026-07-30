@@ -1,4 +1,5 @@
 mod model;
 mod pp_doclayout;
 
-pub use model::{Model, ModelRunner, ParseModelError};
+pub use model::{LayoutModel, Model, ParseModelError};
+pub use pp_doclayout::PpDocLayoutPlusOnnx;

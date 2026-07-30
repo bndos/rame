@@ -1,9 +1,14 @@
 use std::fmt;
 use std::str::FromStr;
 
-use super::pp_doclayout::PpDocLayoutPlusOnnx;
+use crate::datasets::ImageSample;
+use crate::error::BenchResult;
 
 const RAME_PP_DOCLAYOUT_PLUS_ONNX: &str = "rame-pp-doclayout-plus-onnx";
+
+pub trait LayoutModel {
+    fn predict_many(&mut self, samples: &[ImageSample]) -> BenchResult<()>;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Model {
@@ -16,14 +21,6 @@ impl Model {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::RamePpDocLayoutPlusOnnx => RAME_PP_DOCLAYOUT_PLUS_ONNX,
-        }
-    }
-
-    pub fn runner(self) -> ModelRunner {
-        match self {
-            Self::RamePpDocLayoutPlusOnnx => {
-                ModelRunner::PpDocLayoutPlusOnnx(PpDocLayoutPlusOnnx::new())
-            }
         }
     }
 }
@@ -54,9 +51,4 @@ impl FromStr for Model {
             _ => Err(ParseModelError(value.to_string())),
         }
     }
-}
-
-#[derive(Debug)]
-pub enum ModelRunner {
-    PpDocLayoutPlusOnnx(PpDocLayoutPlusOnnx),
 }
