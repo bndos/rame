@@ -9,6 +9,9 @@ pub enum BenchError {
     #[error(transparent)]
     Dataset(#[from] DatasetError),
 
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+
     #[error("batch_size must be greater than zero")]
     InvalidBatchSize,
 
