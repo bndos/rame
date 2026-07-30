@@ -4,6 +4,8 @@ use std::str::FromStr;
 use crate::datasets::ImageSample;
 use crate::error::BenchResult;
 
+use super::PpDocLayoutPlusOnnx;
+
 const RAME_PP_DOCLAYOUT_PLUS_ONNX: &str = "rame-pp-doclayout-plus-onnx";
 
 pub trait LayoutModel {
@@ -21,6 +23,12 @@ impl Model {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::RamePpDocLayoutPlusOnnx => RAME_PP_DOCLAYOUT_PLUS_ONNX,
+        }
+    }
+
+    pub fn load_layout_model(self) -> BenchResult<Box<dyn LayoutModel>> {
+        match self {
+            Self::RamePpDocLayoutPlusOnnx => Ok(Box::new(PpDocLayoutPlusOnnx::new())),
         }
     }
 }
