@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from time import perf_counter
 from typing import Any
 
-from datasets import Image, load_dataset
+from huggingface_hub import hf_hub_download
 
 from rame_benchmarks.models.models_protocols import BenchmarkModel
 from rame_benchmarks.samples import ImageSample
@@ -23,11 +24,11 @@ class LayoutTaskBase(AbsTask):
     metadata = TaskMetadata(
         name=TaskName.LAYOUT_THROUGHPUT,
         dataset=DatasetMetadata(
-            path="creative-graphic-design/PubLayNet",
-            split="test",
+            path="opendatalab/OmniDocBench",
+            split="main",
         ),
     )
-    _sample_range: range | None = None
+    _sample_count: int | None = None
 
     def __init__(self) -> None:
         super().__init__()
@@ -38,21 +39,21 @@ class LayoutTaskBase(AbsTask):
         if self.data_loaded:
             return
 
-        ds = load_dataset(
-            self.metadata.dataset.path,
-            split=self.metadata.dataset.split,
-            revision=self.metadata.dataset.revision,
+        annotations_path = Path(
+            hf_hub_download(
+                self.metadata.dataset.path,
+                "OmniDocBench.json",
+                repo_type="dataset",
+                revision=self.metadata.dataset.revision,
+            )
         )
-        ds = ds.select_columns(["file_name", "image"]).cast_column(
-            "image", Image(decode=False)
-        )
-
-        if self._sample_range is not None:
-            ds = ds.select(self._sample_range)
+        records = json.loads(annotations_path.read_text(encoding="utf-8"))
+        if self._sample_count is not None:
+            records = records[: self._sample_count]
 
         output_dir.mkdir(parents=True, exist_ok=True)
         self.image_samples = [
-            self.load_image_sample(record, output_dir) for record in ds
+            self.load_image_sample(record, output_dir) for record in records
         ]
         self.image_paths = [sample.path for sample in self.image_samples]
         self.data_loaded = True
@@ -60,8 +61,17 @@ class LayoutTaskBase(AbsTask):
     def load_image_sample(
         self, record: dict[str, Any], output_dir: Path
     ) -> ImageSample:
-        image_bytes = record["image"]["bytes"]
-        image_path = ImageSample.cache_path(record["file_name"], output_dir)
+        image_name = record["page_info"]["image_path"]
+        source_path = Path(
+            hf_hub_download(
+                self.metadata.dataset.path,
+                f"images/{image_name}",
+                repo_type="dataset",
+                revision=self.metadata.dataset.revision,
+            )
+        )
+        image_bytes = source_path.read_bytes()
+        image_path = ImageSample.cache_path(image_name, output_dir)
         sample = ImageSample.from_bytes(image_path, image_bytes)
         sample.write_original_bytes(image_bytes)
         return sample
@@ -101,8 +111,8 @@ class LayoutThroughputMicroTask(LayoutTaskBase):
     metadata = TaskMetadata(
         name=TaskName.LAYOUT_THROUGHPUT_MICRO,
         dataset=DatasetMetadata(
-            path="creative-graphic-design/PubLayNet",
-            split="test",
+            path="opendatalab/OmniDocBench",
+            split="main",
         ),
     )
-    _sample_range = range(128)
+    _sample_count = 128

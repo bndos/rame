@@ -23,3 +23,14 @@ paddle_pp_doclayout_plus = ModelLoader(
         model_name="PP-DocLayout_plus-L",
     ),
 )
+
+paddle_pp_doclayout_v3 = ModelLoader(
+    model_meta=ModelMeta(
+        name="paddle-pp-doclayout-v3",
+        description="PaddleX PP-DocLayoutV3 implementation.",
+    ),
+    loader=partial(
+        PaddleLayoutDetectionModel,
+        model_name="PP-DocLayoutV3",
+    ),
+)
