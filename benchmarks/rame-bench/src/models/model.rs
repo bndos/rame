@@ -1,15 +1,15 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::datasets::ImageSample;
 use crate::error::BenchResult;
+use rame::image::Image;
 
 use super::PpDocLayoutPlusOnnx;
 
 const RAME_PP_DOCLAYOUT_PLUS_ONNX: &str = "rame-pp-doclayout-plus-onnx";
 
 pub trait LayoutModel {
-    fn predict_many(&mut self, samples: &[ImageSample]) -> BenchResult<()>;
+    fn predict_many(&mut self, images: &[Image]) -> BenchResult<()>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -28,7 +28,7 @@ impl ModelName {
 
     pub fn load_layout(self) -> BenchResult<Box<dyn LayoutModel>> {
         match self {
-            Self::RamePpDocLayoutPlusOnnx => Ok(Box::new(PpDocLayoutPlusOnnx::new())),
+            Self::RamePpDocLayoutPlusOnnx => Ok(Box::new(PpDocLayoutPlusOnnx::new()?)),
         }
     }
 }

@@ -37,11 +37,15 @@ impl BenchmarkTask for LayoutThroughputTask {
         if samples.is_empty() {
             return Err(BenchError::EmptyDataset);
         }
+        let images = samples
+            .iter()
+            .map(|sample| sample.load_image())
+            .collect::<BenchResult<Vec<_>>>()?;
 
         let started = Instant::now();
         let mut batches = 0u64;
 
-        for batch in samples.chunks(self.batch_size) {
+        for batch in images.chunks(self.batch_size) {
             model.predict_many(batch)?;
             batches += 1;
         }
@@ -66,19 +70,19 @@ impl BenchmarkTask for LayoutThroughputTask {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
-    use crate::models::PpDocLayoutPlusOnnx;
+    use crate::error::BenchResult;
+    use crate::models::LayoutModel;
     use crate::tasks::{BenchmarkTask, LayoutThroughputTask};
+    use rame::image::Image;
 
     #[test]
     fn reports_throughput_metrics() -> Result<(), Box<dyn std::error::Error>> {
         let root = tempfile::tempdir()?;
-        fs::write(root.path().join("a.png"), [])?;
-        fs::write(root.path().join("b.png"), [])?;
-        fs::write(root.path().join("c.png"), [])?;
+        write_test_image(root.path().join("a.png"))?;
+        write_test_image(root.path().join("b.png"))?;
+        write_test_image(root.path().join("c.png"))?;
 
-        let mut model = PpDocLayoutPlusOnnx::new();
+        let mut model = CountingLayoutModel::default();
         let task = LayoutThroughputTask::new(root.path(), 2)?;
 
         let report = task.evaluate(&mut model)?;
@@ -93,7 +97,27 @@ mod tests {
             metric_names,
             ["samples", "batches", "elapsed", "throughput"]
         );
+        assert_eq!(model.batches, 2);
+        assert_eq!(model.images, 3);
 
         Ok(())
+    }
+
+    #[derive(Default)]
+    struct CountingLayoutModel {
+        batches: usize,
+        images: usize,
+    }
+
+    impl LayoutModel for CountingLayoutModel {
+        fn predict_many(&mut self, images: &[Image]) -> BenchResult<()> {
+            self.batches += 1;
+            self.images += images.len();
+            Ok(())
+        }
+    }
+
+    fn write_test_image(path: impl AsRef<std::path::Path>) -> Result<(), image::ImageError> {
+        image::RgbImage::from_pixel(1, 1, image::Rgb([0, 0, 0])).save(path)
     }
 }

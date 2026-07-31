@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::datasets::DatasetError;
+use crate::error::BenchResult;
 
 const IMAGE_EXTENSIONS: &[&str] = &["bmp", "jpeg", "jpg", "png", "tif", "tiff", "webp"];
 
@@ -18,6 +19,20 @@ impl ImageSample {
 
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn load_image(&self) -> BenchResult<rame::image::Image> {
+        let image = image::ImageReader::open(self.path())?
+            .with_guessed_format()?
+            .decode()?
+            .to_rgb8();
+        let (width, height) = image.dimensions();
+
+        Ok(rame::image::Image::from_rgb8(
+            width,
+            height,
+            image.into_raw(),
+        )?)
     }
 }
 
