@@ -11,6 +11,7 @@
 
 pub mod error;
 pub mod image;
+mod instrumentation;
 pub mod layout;
 pub mod models;
 pub mod preprocess;

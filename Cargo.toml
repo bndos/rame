@@ -12,6 +12,7 @@ path = "src/lib.rs"
 
 [dependencies]
 hf-hub = { version = "1.0.0", features = ["blocking", "rustls-tls"], optional = true }
+metrics = { version = "0.24.6", optional = true }
 ndarray = "0.17.2"
 opencv = { version = "0.99.0", default-features = false, features = ["imgproc", "clang-runtime"], optional = true }
 ort = { version = "2.0.0-rc.12", optional = true }
@@ -23,6 +24,7 @@ onnxruntime = ["dep:ort"]
 onnxruntime-cuda = ["onnxruntime", "ort/cuda"]
 onnxruntime-tensorrt = ["onnxruntime-cuda", "ort/tensorrt"]
 opencv = ["dep:opencv"]
+metrics = ["dep:metrics"]
 
 [[example]]
 name = "pp_doclayout_plus_onnx"

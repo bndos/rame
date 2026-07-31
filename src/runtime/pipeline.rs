@@ -31,11 +31,18 @@ where
     D: Decoder<Context = P::Context>,
 {
     pub fn run_many(&mut self, sources: &[P::Source]) -> RameResult<Vec<D::Output>> {
+        crate::instrumentation::time_stage!("rame_pipeline_duration", self.run_many_inner(sources))
+    }
+
+    fn run_many_inner(&mut self, sources: &[P::Source]) -> RameResult<Vec<D::Output>> {
         if sources.is_empty() {
             return Ok(Vec::new());
         }
 
-        let processed = self.processor.process_many(sources)?;
+        let processed = crate::instrumentation::time_stage!(
+            "rame_pipeline_preprocess_duration",
+            self.processor.process_many(sources)
+        )?;
         if processed.len != sources.len() {
             return Err(RameError::InvalidBatchLength {
                 stage: "processor output",
@@ -51,12 +58,18 @@ where
             });
         }
 
-        let outputs = self.session.run(processed.inputs)?;
-        let decoded = self.decoder.decode_batch(DecodeBatch {
-            len: processed.len,
-            outputs: &outputs,
-            contexts: &processed.contexts,
-        })?;
+        let outputs = crate::instrumentation::time_stage!(
+            "rame_pipeline_inference_duration",
+            self.session.run(processed.inputs)
+        )?;
+        let decoded = crate::instrumentation::time_stage!(
+            "rame_pipeline_decode_duration",
+            self.decoder.decode_batch(DecodeBatch {
+                len: processed.len,
+                outputs: &outputs,
+                contexts: &processed.contexts,
+            })
+        )?;
         if decoded.len() != processed.len {
             return Err(RameError::InvalidBatchLength {
                 stage: "decoder output",
