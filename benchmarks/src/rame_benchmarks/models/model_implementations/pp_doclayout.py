@@ -24,6 +24,19 @@ paddle_pp_doclayout_plus = ModelLoader(
     ),
 )
 
+paddlex_pp_doclayout_plus_native_cpu = ModelLoader(
+    model_meta=ModelMeta(
+        name="paddlex-pp-doclayout-plus-native-cpu",
+        description="PaddleX PP-DocLayout Plus native CPU implementation.",
+    ),
+    loader=partial(
+        PaddleLayoutDetectionModel,
+        model_name="PP-DocLayout_plus-L",
+        device="cpu",
+        engine="paddle",
+    ),
+)
+
 paddle_pp_doclayout_v3 = ModelLoader(
     model_meta=ModelMeta(
         name="paddle-pp-doclayout-v3",

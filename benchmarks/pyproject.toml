@@ -5,7 +5,7 @@ requires-python = ">=3.11,<3.13"
 dependencies = [
   "datasets>=3.0.0",
   "huggingface-hub>=1.0.1",
-  "numpy>=2.4.6",
+  "numpy>=1.24,<2.4",
   "pillow>=12.0.0",
   "rich>=14.2.0",
   "typer>=0.20.0",
@@ -19,10 +19,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.optional-dependencies]
-paddle-cpu = ["paddlepaddle==3.3.0", "paddlex[ocr]>=3.4.0,<3.5.0"]
-paddle-cu126 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]>=3.4.0,<3.5.0"]
-paddle-cu129 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]>=3.4.0,<3.5.0"]
-paddle-cu130 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]>=3.4.0,<3.5.0"]
+paddle-cpu = ["paddlepaddle==3.3.0", "paddlex[ocr]==3.7.2"]
+paddle-cu126 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
+paddle-cu129 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
+paddle-cu130 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
 
 [dependency-groups]
 dev = ["ruff>=0.14.0"]
