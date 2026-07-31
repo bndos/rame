@@ -54,12 +54,30 @@ class AbsTask(ABC):
     def load_data(self, output_dir: Path, **kwargs: Any) -> None: ...
 
     def evaluate(
-        self, model: BenchmarkModel, output_dir: Path, *, batch_size: int
+        self,
+        model: BenchmarkModel,
+        output_dir: Path,
+        *,
+        batch_size: int,
+        warmup: int,
+        repeats: int,
     ) -> TaskResult:
         if not self.data_loaded:
             self.load_data(output_dir)
 
-        return self._evaluate(model, batch_size=batch_size)
+        return self._evaluate(
+            model,
+            batch_size=batch_size,
+            warmup=warmup,
+            repeats=repeats,
+        )
 
     @abstractmethod
-    def _evaluate(self, model: BenchmarkModel, *, batch_size: int) -> TaskResult: ...
+    def _evaluate(
+        self,
+        model: BenchmarkModel,
+        *,
+        batch_size: int,
+        warmup: int,
+        repeats: int,
+    ) -> TaskResult: ...

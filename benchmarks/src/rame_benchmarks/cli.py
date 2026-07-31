@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model, get_model_metas
-from rame_benchmarks.reporting import print_task_results
+from rame_benchmarks.reporting import print_task_results, write_task_results_json
 from rame_benchmarks.tasks import TaskName, get_tasks
 
 app = typer.Typer(no_args_is_help=True)
@@ -58,6 +58,18 @@ def run(
             "--batch-size", help="Number of samples per model prediction batch."
         ),
     ] = 32,
+    warmup: Annotated[
+        int,
+        typer.Option("--warmup", help="Untimed full-dataset warmup passes."),
+    ] = 0,
+    repeats: Annotated[
+        int,
+        typer.Option("--repeats", help="Timed full-dataset passes."),
+    ] = 1,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", help="Optional JSON output path."),
+    ] = None,
 ) -> None:
     tasks = get_tasks(tuple(task_names) if task_names else None)
     data_folder = output_folder / "data"
@@ -70,7 +82,11 @@ def run(
             loaded_model,
             task_output_folder,
             batch_size=batch_size,
+            warmup=warmup,
+            repeats=repeats,
         )
         results.append(result)
 
     print_task_results(model, results)
+    if output is not None:
+        write_task_results_json(output, model, results)

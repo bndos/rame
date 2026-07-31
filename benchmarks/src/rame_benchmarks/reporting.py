@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
+from dataclasses import asdict
+from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
@@ -31,3 +34,16 @@ def format_metric_value(metric: TaskMetric) -> str:
     if metric.unit is None:
         return value
     return f"{value} {metric.unit}"
+
+
+def write_task_results_json(
+    path: Path,
+    model: ModelName,
+    results: Sequence[TaskResult],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "model": str(model),
+        "results": [asdict(result) for result in results],
+    }
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

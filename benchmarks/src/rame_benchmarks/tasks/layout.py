@@ -76,27 +76,47 @@ class LayoutTaskBase(AbsTask):
         sample.write_original_bytes(image_bytes)
         return sample
 
-    def _evaluate(self, model: BenchmarkModel, *, batch_size: int) -> TaskResult:
+    def _evaluate(
+        self,
+        model: BenchmarkModel,
+        *,
+        batch_size: int,
+        warmup: int,
+        repeats: int,
+    ) -> TaskResult:
         if batch_size <= 0:
             raise ValueError("batch_size must be greater than zero")
+        if warmup < 0:
+            raise ValueError("warmup must be greater than or equal to zero")
+        if repeats <= 0:
+            raise ValueError("repeats must be greater than zero")
         if not self.data_loaded:
             raise RuntimeError("task data must be loaded before evaluation")
 
         batches = list(chunked(self.image_samples, batch_size))
+        for _ in range(warmup):
+            for batch in batches:
+                model.detect_layout_many(batch, batch_size=batch_size)
+
         started = perf_counter()
-        for batch in batches:
-            model.detect_layout_many(batch, batch_size=batch_size)
+        for _ in range(repeats):
+            for batch in batches:
+                model.detect_layout_many(batch, batch_size=batch_size)
         elapsed_s = perf_counter() - started
+        total_samples = len(self.image_samples) * repeats
 
         return TaskResult(
             task_name=self.name,
             metrics=(
                 TaskMetric("samples", len(self.image_samples)),
-                TaskMetric("batches", len(batches)),
+                TaskMetric("warmup", warmup),
+                TaskMetric("repeats", repeats),
+                TaskMetric("total_samples", total_samples),
+                TaskMetric("batches", len(batches) * repeats),
                 TaskMetric("elapsed", elapsed_s, "s"),
                 TaskMetric(
                     "throughput",
-                    len(self.image_samples) / elapsed_s,
+                    total_samples / elapsed_s,
                     "samples/s",
                 ),
             ),

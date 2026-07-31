@@ -10,17 +10,29 @@ use crate::tasks::{BenchmarkTask, Task, TaskMetric, TaskReport};
 pub struct LayoutThroughputTask {
     dataset: ImageDataset,
     batch_size: usize,
+    warmup: usize,
+    repeats: usize,
 }
 
 impl LayoutThroughputTask {
-    pub fn new(dataset_root: impl Into<PathBuf>, batch_size: usize) -> BenchResult<Self> {
+    pub fn new(
+        dataset_root: impl Into<PathBuf>,
+        batch_size: usize,
+        warmup: usize,
+        repeats: usize,
+    ) -> BenchResult<Self> {
         if batch_size == 0 {
             return Err(BenchError::InvalidBatchSize);
+        }
+        if repeats == 0 {
+            return Err(BenchError::InvalidRepeats);
         }
 
         Ok(Self {
             dataset: ImageDataset::new(dataset_root),
             batch_size,
+            warmup,
+            repeats,
         })
     }
 }
@@ -42,25 +54,37 @@ impl BenchmarkTask for LayoutThroughputTask {
             .map(|sample| sample.load_image())
             .collect::<BenchResult<Vec<_>>>()?;
 
+        for _ in 0..self.warmup {
+            for batch in images.chunks(self.batch_size) {
+                model.predict_many(batch)?;
+            }
+        }
+
         let started = Instant::now();
         let mut batches = 0u64;
 
-        for batch in images.chunks(self.batch_size) {
-            model.predict_many(batch)?;
-            batches += 1;
+        for _ in 0..self.repeats {
+            for batch in images.chunks(self.batch_size) {
+                model.predict_many(batch)?;
+                batches += 1;
+            }
         }
 
         let elapsed_s = started.elapsed().as_secs_f64();
+        let total_samples = samples.len() * self.repeats;
 
         Ok(TaskReport::new(
             self.name(),
             vec![
                 TaskMetric::integer("samples", samples.len() as u64),
+                TaskMetric::integer("warmup", self.warmup as u64),
+                TaskMetric::integer("repeats", self.repeats as u64),
+                TaskMetric::integer("total_samples", total_samples as u64),
                 TaskMetric::integer("batches", batches),
                 TaskMetric::float("elapsed", elapsed_s, Some("s")),
                 TaskMetric::float(
                     "throughput",
-                    samples.len() as f64 / elapsed_s.max(f64::MIN_POSITIVE),
+                    total_samples as f64 / elapsed_s.max(f64::MIN_POSITIVE),
                     Some("samples/s"),
                 ),
             ],
@@ -83,7 +107,7 @@ mod tests {
         write_test_image(root.path().join("c.png"))?;
 
         let mut model = CountingLayoutModel::default();
-        let task = LayoutThroughputTask::new(root.path(), 2)?;
+        let task = LayoutThroughputTask::new(root.path(), 2, 1, 2)?;
 
         let report = task.evaluate(&mut model)?;
         let metric_names = report
@@ -95,10 +119,18 @@ mod tests {
         assert_eq!(report.task(), crate::tasks::Task::LayoutThroughput);
         assert_eq!(
             metric_names,
-            ["samples", "batches", "elapsed", "throughput"]
+            [
+                "samples",
+                "warmup",
+                "repeats",
+                "total_samples",
+                "batches",
+                "elapsed",
+                "throughput"
+            ]
         );
-        assert_eq!(model.batches, 2);
-        assert_eq!(model.images, 3);
+        assert_eq!(model.batches, 6);
+        assert_eq!(model.images, 9);
 
         Ok(())
     }

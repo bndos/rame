@@ -24,6 +24,9 @@ pub enum BenchError {
     #[error("batch_size must be greater than zero")]
     InvalidBatchSize,
 
+    #[error("repeats must be greater than zero")]
+    InvalidRepeats,
+
     #[error("image dataset did not contain any supported image files")]
     EmptyDataset,
 }
