@@ -24,16 +24,37 @@ paddle_pp_doclayout_plus = ModelLoader(
     ),
 )
 
-paddlex_pp_doclayout_plus_native_cpu = ModelLoader(
+paddlex_pp_doclayout_plus_hpi_auto_cpu = ModelLoader(
     model_meta=ModelMeta(
-        name="paddlex-pp-doclayout-plus-native-cpu",
-        description="PaddleX PP-DocLayout Plus native CPU implementation.",
+        name="paddlex-pp-doclayout-plus-hpi-auto-cpu",
+        description="PaddleX PP-DocLayout Plus CPU implementation using HPI auto selection.",
     ),
     loader=partial(
         PaddleLayoutDetectionModel,
         model_name="PP-DocLayout_plus-L",
         device="cpu",
-        engine="paddle",
+        engine="hpi",
+    ),
+)
+
+paddlex_pp_doclayout_plus_hpi_onnxruntime_cpu = ModelLoader(
+    model_meta=ModelMeta(
+        name="paddlex-pp-doclayout-plus-hpi-onnxruntime-cpu",
+        description="PaddleX PP-DocLayout Plus CPU implementation using HPI ONNXRuntime.",
+    ),
+    loader=partial(
+        PaddleLayoutDetectionModel,
+        model_name="PP-DocLayout_plus-L",
+        device="cpu",
+        engine="hpi",
+        engine_config={
+            "auto_config": False,
+            "backend": "onnxruntime",
+            "backend_config": {
+                # TODO: use args for threads
+                "cpu_num_threads": 10,
+            },
+        },
     ),
 )
 

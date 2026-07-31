@@ -18,8 +18,18 @@ rame-bench = "rame_benchmarks.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project.optional-dependencies]
 paddle-cpu = ["paddlepaddle==3.3.0", "paddlex[ocr]==3.7.2"]
+paddle-hpi-cpu = [
+  "paddle2onnx==2.0.2rc3",
+  "paddlepaddle==3.3.0",
+  "paddlex[ocr]==3.7.2",
+  "ultra-infer-python @ https://paddle-model-ecology.bj.bcebos.com/paddlex/PaddleX3.0/deploy/hpi/ultra_infer/releases/new_hpi/v1.2.0/ultra_infer_python-1.2.0-cp311-cp311-linux_x86_64.whl ; python_version == '3.11' and platform_system == 'Linux' and platform_machine == 'x86_64'",
+  "ultra-infer-python @ https://paddle-model-ecology.bj.bcebos.com/paddlex/PaddleX3.0/deploy/hpi/ultra_infer/releases/new_hpi/v1.2.0/ultra_infer_python-1.2.0-cp312-cp312-linux_x86_64.whl ; python_version == '3.12' and platform_system == 'Linux' and platform_machine == 'x86_64'",
+]
 paddle-cu126 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
 paddle-cu129 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
 paddle-cu130 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
@@ -34,6 +44,7 @@ select = ["ARG", "E4", "E7", "E9", "F", "I", "PLC0415"]
 conflicts = [
   [
     { extra = "paddle-cpu" },
+    { extra = "paddle-hpi-cpu" },
     { extra = "paddle-cu126" },
     { extra = "paddle-cu129" },
     { extra = "paddle-cu130" },
