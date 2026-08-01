@@ -29,4 +29,10 @@ pub enum BenchError {
 
     #[error("image dataset did not contain any supported image files")]
     EmptyDataset,
+
+    #[error("metrics recorder was already installed")]
+    MetricsRecorderAlreadyInstalled,
+
+    #[error("profiling requires the `profile` feature")]
+    ProfileFeatureDisabled,
 }

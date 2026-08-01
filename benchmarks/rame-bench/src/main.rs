@@ -1,3 +1,4 @@
+mod bench_metrics;
 mod cli;
 pub mod datasets;
 pub mod error;
