@@ -35,7 +35,8 @@ mod tests {
         let pipeline = super::pipeline()
             .add_op(Resize::fixed_square(2, Interpolation::Cubic))
             .add_op(NormalizeImage::scale(NormalizeImage::INV_255))
-            .add_op(Permute::nchw());
+            .add_op(Permute::nchw())
+            .compile();
 
         let output = pipeline.process_many(std::slice::from_ref(&image)).unwrap();
 

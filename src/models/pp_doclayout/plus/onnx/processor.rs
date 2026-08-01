@@ -1,6 +1,7 @@
 use crate::RameResult;
 use crate::image::Image;
 use crate::models::pp_doclayout::plus::onnx::{Inputs, Preprocess};
+use crate::preprocess::vision::VisionPipeline;
 use crate::runtime::{ProcessedBatch, Processor};
 use crate::tensor::{TensorMap, TensorValue};
 
@@ -8,12 +9,18 @@ use crate::tensor::{TensorMap, TensorValue};
 #[doc(hidden)]
 pub struct PpDocLayoutPlusOnnxProcessor {
     inputs: Inputs,
-    preprocess: Preprocess,
+    pipeline: VisionPipeline,
 }
 
 impl PpDocLayoutPlusOnnxProcessor {
     pub fn new(inputs: Inputs, preprocess: Preprocess) -> Self {
-        Self { inputs, preprocess }
+        let pipeline = crate::preprocess::vision::pipeline()
+            .add_op(preprocess.resize)
+            .add_op(preprocess.normalize)
+            .add_op(preprocess.permute)
+            .compile();
+
+        Self { inputs, pipeline }
     }
 }
 
@@ -30,11 +37,7 @@ impl Processor for PpDocLayoutPlusOnnxProcessor {
             });
         }
 
-        let pipeline = crate::preprocess::vision::pipeline()
-            .add_op(self.preprocess.resize)
-            .add_op(self.preprocess.normalize)
-            .add_op(self.preprocess.permute);
-        let output = pipeline.process_many(images)?;
+        let output = self.pipeline.process_many(images)?;
 
         Ok(ProcessedBatch {
             len: output.len(),

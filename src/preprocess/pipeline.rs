@@ -16,6 +16,8 @@ pub trait PreprocessBackend: Sized {
 
     fn finish(&self, batch: Self::Batch) -> RameResult<Self::Output>;
 
+    fn compile(&self, ops: &mut Vec<Arc<dyn PreprocessOp<Self>>>);
+
     fn process_many(
         &self,
         sources: &[Self::Source],
@@ -67,6 +69,11 @@ where
 
     pub fn ops_len(&self) -> usize {
         self.ops.len()
+    }
+
+    pub fn compile(mut self) -> Self {
+        self.backend.compile(&mut self.ops);
+        self
     }
 
     pub fn process_many(&self, sources: &[B::Source]) -> RameResult<B::Output> {

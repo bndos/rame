@@ -1,11 +1,12 @@
 use ndarray::{Array2, Array3, Array4, Axis, s};
 use opencv::core::Mat;
 use opencv::prelude::MatTraitConst;
+use std::sync::Arc;
 
 use crate::RameResult;
 use crate::image::Image;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::pipeline::PreprocessBackend;
+use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::VisionBatchOutput;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -30,6 +31,8 @@ impl PreprocessBackend for OpenCvVisionBackend {
     type Source = Image;
     type Batch = OpenCvVisionBatch;
     type Output = VisionBatchOutput;
+
+    fn compile(&self, _ops: &mut Vec<Arc<dyn PreprocessOp<Self>>>) {}
 
     fn batch(&self, images: &[Self::Source]) -> RameResult<Self::Batch> {
         OpenCvVisionBatch::new(images)
