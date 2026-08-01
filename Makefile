@@ -7,6 +7,7 @@ help:
 		'  make fmt       Format Rust, TOML, YAML, and benchmark Python files' \
 		'  make check     Run format checks, Clippy, and tests' \
 		'  make test      Run tests with FEATURES' \
+		'  make hooks     Install Lefthook and sync Git hooks' \
 		'  make bench-env Sync benchmark environment; set EXTRA=paddle-cu126 as needed'
 
 .PHONY: fmt
@@ -32,6 +33,20 @@ check:
 .PHONY: test
 test:
 	cargo test $(FEATURES)
+
+.PHONY: hooks
+hooks:
+	@if ! command -v lefthook >/dev/null 2>&1; then \
+		if command -v go >/dev/null 2>&1; then \
+			go install github.com/evilmartians/lefthook/v2@latest; \
+		elif command -v brew >/dev/null 2>&1; then \
+			brew install lefthook; \
+		else \
+			printf '%s\n' 'warning: install lefthook manually; neither go nor brew is available'; \
+			exit 0; \
+		fi; \
+	fi
+	lefthook install
 
 .PHONY: bench-env
 bench-env:

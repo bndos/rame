@@ -17,10 +17,10 @@ walkdir = "2.5.0"
 
 [features]
 profile = [
-    "dep:metrics",
-    "dep:metrics-exporter-tracing",
-    "dep:tracing-subscriber",
-    "rame/metrics",
+  "dep:metrics",
+  "dep:metrics-exporter-tracing",
+  "dep:tracing-subscriber",
+  "rame/metrics",
 ]
 
 [dev-dependencies]
