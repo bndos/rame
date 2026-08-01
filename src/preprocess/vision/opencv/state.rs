@@ -1,5 +1,5 @@
 use ndarray::{Array2, Array3, Array4, Axis, s};
-use opencv::core::{Mat, Vec3b};
+use opencv::core::Mat;
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
@@ -46,8 +46,9 @@ impl OpenCvVisionState {
         let source_height = source_size.height as i32;
         let source_width = source_size.width as i32;
 
-        let pixels = rgb_pixels(image.data());
-        let image = Mat::new_rows_cols_with_data(source_height, source_width, &pixels)
+        let image = Mat::new_rows_cols_with_data(1, source_height * source_width * 3, image.data())
+            .map_err(PreprocessError::from)?
+            .reshape(3, source_height)
             .map_err(PreprocessError::from)?
             .try_clone()
             .map_err(PreprocessError::from)?;
@@ -108,12 +109,6 @@ impl OpenCvVisionBatch {
             scale_factors,
         })
     }
-}
-
-fn rgb_pixels(data: &[u8]) -> Vec<Vec3b> {
-    data.chunks_exact(3)
-        .map(|pixel| Vec3b::from([pixel[0], pixel[1], pixel[2]]))
-        .collect()
 }
 
 fn ensure_batch_tensor(
