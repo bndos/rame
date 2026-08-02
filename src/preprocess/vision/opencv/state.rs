@@ -1,13 +1,12 @@
 use ndarray::{Array2, Array3, Array4, Axis, s};
 use opencv::core::Mat;
 use opencv::prelude::MatTraitConst;
-use std::sync::Arc;
 
 use crate::RameResult;
 use crate::image::Image;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
-use crate::preprocess::vision::VisionBatchOutput;
+use crate::preprocess::vision::{VisionBatchOutput, VisionOp};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenCvVisionBackend;
@@ -31,8 +30,9 @@ impl PreprocessBackend for OpenCvVisionBackend {
     type Source = Image;
     type Batch = OpenCvVisionBatch;
     type Output = VisionBatchOutput;
+    type Op = VisionOp;
 
-    fn compile(&self, _ops: &mut Vec<Arc<dyn PreprocessOp<Self>>>) {}
+    fn compile(&self, _ops: &mut Vec<Self::Op>) {}
 
     fn batch(&self, images: &[Self::Source]) -> RameResult<Self::Batch> {
         OpenCvVisionBatch::new(images)
@@ -40,6 +40,16 @@ impl PreprocessBackend for OpenCvVisionBackend {
 
     fn finish(&self, batch: Self::Batch) -> RameResult<Self::Output> {
         batch.finish()
+    }
+}
+
+impl PreprocessOp<OpenCvVisionBackend> for VisionOp {
+    fn apply(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+        match *self {
+            Self::Resize(op) => op.apply_opencv(batch),
+            Self::NormalizeImage(op) => op.apply_opencv(batch),
+            Self::Permute(op) => op.apply_opencv(batch),
+        }
     }
 }
 

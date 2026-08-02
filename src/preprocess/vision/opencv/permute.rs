@@ -2,12 +2,11 @@ use ndarray::Axis;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::pipeline::PreprocessOp;
-use crate::preprocess::vision::opencv::state::{OpenCvVisionBackend, OpenCvVisionBatch};
+use crate::preprocess::vision::opencv::state::OpenCvVisionBatch;
 use crate::preprocess::vision::{Permute, TensorLayout};
 
-impl PreprocessOp<OpenCvVisionBackend> for Permute {
-    fn apply(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+impl Permute {
+    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
         for item in &mut batch.items {
             let image = item
                 .normalized_image

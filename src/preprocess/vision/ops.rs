@@ -98,3 +98,29 @@ impl Permute {
         Self::new(TensorLayout::Nchw)
     }
 }
+
+/// Typed vision preprocessing operation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum VisionOp {
+    Resize(Resize),
+    NormalizeImage(NormalizeImage),
+    Permute(Permute),
+}
+
+impl From<Resize> for VisionOp {
+    fn from(op: Resize) -> Self {
+        Self::Resize(op)
+    }
+}
+
+impl From<NormalizeImage> for VisionOp {
+    fn from(op: NormalizeImage) -> Self {
+        Self::NormalizeImage(op)
+    }
+}
+
+impl From<Permute> for VisionOp {
+    fn from(op: Permute) -> Self {
+        Self::Permute(op)
+    }
+}

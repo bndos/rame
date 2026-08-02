@@ -3,14 +3,11 @@ use opencv::imgproc;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::pipeline::PreprocessOp;
-use crate::preprocess::vision::opencv::state::{
-    OpenCvVisionBackend, OpenCvVisionBatch, OpenCvVisionState,
-};
+use crate::preprocess::vision::opencv::state::{OpenCvVisionBatch, OpenCvVisionState};
 use crate::preprocess::vision::{Interpolation, Resize, ResizeMode};
 
-impl PreprocessOp<OpenCvVisionBackend> for Resize {
-    fn apply(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+impl Resize {
+    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
         for item in &mut batch.items {
             item.image = self.resize_mat(&item.image)?;
             item.scale_factor = self.scale_factor(item);

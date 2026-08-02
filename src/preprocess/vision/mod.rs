@@ -10,7 +10,7 @@ mod output;
 
 #[cfg(feature = "opencv")]
 pub use opencv::OpenCvVisionBackend;
-pub use ops::{Interpolation, NormalizeImage, Permute, Resize, ResizeMode, TensorLayout};
+pub use ops::{Interpolation, NormalizeImage, Permute, Resize, ResizeMode, TensorLayout, VisionOp};
 pub use output::VisionBatchOutput;
 
 #[cfg(feature = "opencv")]

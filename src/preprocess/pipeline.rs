@@ -1,5 +1,4 @@
 use std::fmt;
-use std::sync::Arc;
 
 use crate::RameResult;
 
@@ -11,18 +10,16 @@ pub trait PreprocessBackend: Sized {
     type Batch;
     /// Output produced after all preprocessing ops have run over a batch.
     type Output;
+    /// Typed operation IR compiled by this backend.
+    type Op: PreprocessOp<Self>;
 
     fn batch(&self, sources: &[Self::Source]) -> RameResult<Self::Batch>;
 
     fn finish(&self, batch: Self::Batch) -> RameResult<Self::Output>;
 
-    fn compile(&self, ops: &mut Vec<Arc<dyn PreprocessOp<Self>>>);
+    fn compile(&self, ops: &mut Vec<Self::Op>);
 
-    fn process_many(
-        &self,
-        sources: &[Self::Source],
-        ops: &[Arc<dyn PreprocessOp<Self>>],
-    ) -> RameResult<Self::Output> {
+    fn process_many(&self, sources: &[Self::Source], ops: &[Self::Op]) -> RameResult<Self::Output> {
         let mut batch = self.batch(sources)?;
 
         for op in ops {
@@ -48,7 +45,7 @@ where
     B: PreprocessBackend,
 {
     backend: B,
-    ops: Vec<Arc<dyn PreprocessOp<B>>>,
+    ops: Vec<B::Op>,
 }
 
 impl<B> PreprocessPipeline<B>
@@ -62,8 +59,8 @@ where
         }
     }
 
-    pub fn add_op(mut self, op: impl PreprocessOp<B> + 'static) -> Self {
-        self.ops.push(Arc::new(op));
+    pub fn add_op(mut self, op: impl Into<B::Op>) -> Self {
+        self.ops.push(op.into());
         self
     }
 

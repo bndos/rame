@@ -4,12 +4,11 @@ use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::pipeline::PreprocessOp;
 use crate::preprocess::vision::NormalizeImage;
-use crate::preprocess::vision::opencv::state::{OpenCvVisionBackend, OpenCvVisionBatch};
+use crate::preprocess::vision::opencv::state::OpenCvVisionBatch;
 
-impl PreprocessOp<OpenCvVisionBackend> for NormalizeImage {
-    fn apply(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+impl NormalizeImage {
+    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
         for item in &mut batch.items {
             item.normalized_image = Some(self.normalize_mat(&item.image)?);
         }
