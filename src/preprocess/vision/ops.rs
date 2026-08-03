@@ -105,6 +105,11 @@ pub enum VisionOp {
     Resize(Resize),
     NormalizeImage(NormalizeImage),
     Permute(Permute),
+    #[doc(hidden)]
+    NormalizeAndPermute {
+        normalize: NormalizeImage,
+        permute: Permute,
+    },
 }
 
 impl From<Resize> for VisionOp {
