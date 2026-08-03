@@ -9,9 +9,13 @@ use crate::preprocess::vision::opencv::state::OpenCvVisionBatch;
 
 impl NormalizeImage {
     pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
-        for item in &mut batch.items {
-            item.normalized_image = Some(self.normalize_mat(&item.image)?);
-        }
+        batch.normalized_images = Some(
+            batch
+                .items
+                .iter()
+                .map(|item| self.normalize_mat(&item.image))
+                .collect::<RameResult<Vec<_>>>()?,
+        );
 
         Ok(())
     }
