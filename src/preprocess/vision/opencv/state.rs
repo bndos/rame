@@ -33,7 +33,9 @@ impl PreprocessBackend for OpenCvVisionBackend {
     type Output = VisionBatchOutput;
     type Op = VisionOp;
 
-    fn compile(&self, _ops: &mut Vec<Self::Op>) {}
+    fn compile(&self, ops: &mut Vec<Self::Op>) {
+        super::compile::compile(ops);
+    }
 
     fn batch(&self, images: &[Self::Source]) -> RameResult<Self::Batch> {
         OpenCvVisionBatch::new(images)
@@ -80,7 +82,7 @@ impl OpenCvVisionState {
 }
 
 impl OpenCvVisionBatch {
-    fn new(images: &[Image]) -> RameResult<Self> {
+    pub(super) fn new(images: &[Image]) -> RameResult<Self> {
         let items = images
             .iter()
             .map(OpenCvVisionState::new)
@@ -93,7 +95,7 @@ impl OpenCvVisionBatch {
         })
     }
 
-    fn finish(self) -> RameResult<VisionBatchOutput> {
+    pub(super) fn finish(self) -> RameResult<VisionBatchOutput> {
         let len = self.items.len();
         let mut image_shapes = Array2::zeros((len, 2));
         let mut scale_factors = Array2::zeros((len, 2));
