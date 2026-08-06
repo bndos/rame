@@ -51,6 +51,9 @@ let result = model.detect_layout(&image)?;
 
 ## Supported Models
 
-| Family | Task | Artifact |
+| Model | Task | Artifact |
 | --- | --- | --- |
 | PaddleOCR PP-DocLayout Plus | Layout detection | ONNX |
+
+More model integrations will be added as their preprocessing and decoding
+contracts are implemented.
