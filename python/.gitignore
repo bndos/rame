@@ -1,0 +1,5 @@
+/rame/_native*.so
+/rame/_native*.pyd
+/rame/__pycache__/
+/target/
+/.venv/
