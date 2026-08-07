@@ -4,4 +4,11 @@ from rame._native import __version__
 from rame.layout import Geometry, LayoutLabel, LayoutRegion, LayoutResult
 from rame.model import LayoutModel
 
-__all__ = ["Geometry", "LayoutLabel", "LayoutModel", "LayoutRegion", "LayoutResult", "__version__"]
+__all__ = [
+    "Geometry",
+    "LayoutLabel",
+    "LayoutModel",
+    "LayoutRegion",
+    "LayoutResult",
+    "__version__",
+]

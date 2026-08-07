@@ -15,7 +15,6 @@ build_info: str
 
 GeometryKind: TypeAlias = Literal["rect", "polygon"]
 
-
 class Geometry:
     """Geometry describing a detected layout region."""
 
@@ -24,7 +23,6 @@ class Geometry:
 
     coordinates: list[float]
     """Flat image coordinates for the geometry."""
-
 
 class LayoutRegion:
     """A detected document layout region."""
@@ -40,7 +38,6 @@ class LayoutRegion:
 
     reading_order: int | None
     """Optional zero-based reading order if emitted by the model."""
-
 
 class LayoutResult:
     """Result of a document layout detection run."""
