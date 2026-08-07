@@ -1,0 +1,8 @@
+[tool.uv.workspace]
+members = ["python", "benchmarks"]
+
+[tool.ruff.lint]
+extend-select = ["I", "RUF022"]
+
+[dependency-groups]
+dev = ["debugpy>=1.8.21", "ruff>=0.16.1", "ty>=0.0.69"]

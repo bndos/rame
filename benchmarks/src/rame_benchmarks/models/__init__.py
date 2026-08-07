@@ -16,10 +16,10 @@ from rame_benchmarks.models.registry import (
 )
 
 __all__ = [
+    "MODEL_REGISTRY",
     "BenchmarkModel",
     "LayoutModelProtocol",
     "LayoutPrediction",
-    "MODEL_REGISTRY",
     "ModelLoader",
     "ModelMeta",
     "ModelName",

@@ -35,10 +35,10 @@ paddle-cu129 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
 paddle-cu130 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
 
 [dependency-groups]
-dev = ["ruff>=0.14.0"]
+dev = []
 
 [tool.ruff.lint]
-select = ["ARG", "E4", "E7", "E9", "F", "I", "PLC0415"]
+select = ["ARG", "E4", "E7", "E9", "F", "I", "PLC0415", "RUF022"]
 
 [tool.uv]
 conflicts = [

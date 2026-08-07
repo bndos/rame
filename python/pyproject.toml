@@ -14,8 +14,4 @@ module-name = "rame._native"
 bindings = "pyo3"
 
 [dependency-groups]
-dev = [
-  "debugpy>=1.8.21",
-  "ruff>=0.16.1",
-  "ty>=0.0.69",
-]
+dev = []

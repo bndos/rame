@@ -16,14 +16,14 @@ from rame_benchmarks.tasks.layout import (
 from rame_benchmarks.tasks.registry import TASKS, get_tasks
 
 __all__ = [
+    "TASKS",
     "AbsTask",
     "DatasetMetadata",
     "LayoutTaskBase",
     "LayoutThroughputMicroTask",
     "LayoutThroughputTask",
-    "TASKS",
-    "TaskMetric",
     "TaskMetadata",
+    "TaskMetric",
     "TaskName",
     "TaskResult",
     "get_tasks",
