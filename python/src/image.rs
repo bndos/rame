@@ -11,5 +11,6 @@ pub(crate) fn array_to_image(array: PyReadonlyArray3<'_, u8>) -> PyResult<Image>
             "expected 3 channels (RGB), got {channels}"
         )));
     }
-    Image::from_rgb8(width as u32, height as u32, array.as_slice()?).map_err(crate::error::into_py_err)
+    Image::from_rgb8(width as u32, height as u32, array.as_slice()?)
+        .map_err(crate::error::into_py_err)
 }

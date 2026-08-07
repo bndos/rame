@@ -1,13 +1,14 @@
-from __future__ import annotations
-
 from typing import Literal, TypeAlias
 
+import numpy as np
+from numpy.typing import NDArray
+
 __all__ = [
-    "__version__",
-    "build_info",
     "Geometry",
     "LayoutRegion",
     "LayoutResult",
+    "__version__",
+    "build_info",
 ]
 
 __version__: str
@@ -44,3 +45,10 @@ class LayoutResult:
 
     regions: list[LayoutRegion]
     """Detected layout regions."""
+
+class PpDocLayoutPlusOnnx:
+    def __init__(self, source: str) -> None: ...
+    def detect_layout(self, image: NDArray[np.uint8]) -> LayoutResult: ...
+    def detect_layout_many(
+        self, images: list[NDArray[np.uint8]]
+    ) -> list[LayoutResult]: ...
