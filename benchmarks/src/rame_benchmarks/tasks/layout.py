@@ -96,12 +96,12 @@ class LayoutTaskBase(AbsTask):
         batches = list(chunked(self.image_samples, batch_size))
         for _ in range(warmup):
             for batch in batches:
-                model.detect_layout_many(batch, batch_size=batch_size)
+                model.detect_layout_many(batch)
 
         started = perf_counter()
         for _ in range(repeats):
             for batch in batches:
-                model.detect_layout_many(batch, batch_size=batch_size)
+                model.detect_layout_many(batch)
         elapsed_s = perf_counter() - started
         total_samples = len(self.image_samples) * repeats
 

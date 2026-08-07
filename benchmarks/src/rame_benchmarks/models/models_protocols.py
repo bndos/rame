@@ -18,7 +18,7 @@ class LayoutModelProtocol(Protocol):
     def benchmark_model_meta(self) -> ModelMeta: ...
 
     def detect_layout_many(
-        self, images: Sequence[ImageSample], *, batch_size: int
+        self, images: Sequence[ImageSample]
     ) -> Sequence[LayoutPrediction]: ...
 
 

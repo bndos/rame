@@ -40,7 +40,7 @@ class PaddleLayoutDetectionModel:
         return self._benchmark_model_meta
 
     def detect_layout_many(
-        self, images: Sequence[ImageSample], *, batch_size: int
+        self, images: Sequence[ImageSample]
     ) -> Sequence[LayoutPrediction]:
         if not images:
             return []
@@ -48,7 +48,7 @@ class PaddleLayoutDetectionModel:
         results = list(
             self._predictor.predict(
                 [sample.as_ndarray() for sample in images],
-                batch_size=batch_size,
+                batch_size=len(images),
             )
         )
         return [LayoutPrediction(regions=len(result["boxes"])) for result in results]

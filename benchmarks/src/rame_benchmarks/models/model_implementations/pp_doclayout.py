@@ -5,12 +5,14 @@ from functools import partial
 from rame_benchmarks.models.model_loader import ModelLoader
 from rame_benchmarks.models.model_meta import ModelMeta
 from rame_benchmarks.models.paddle import PaddleLayoutDetectionModel
+from rame_benchmarks.models.rame import RameLayoutDetectionModel
 
 rame_pp_doclayout_plus_onnx = ModelLoader(
     model_meta=ModelMeta(
         name="rame-pp-doclayout-plus-onnx",
         description="rame PP-DocLayout Plus ONNX implementation.",
-    )
+    ),
+    loader=RameLayoutDetectionModel,
 )
 
 paddle_pp_doclayout_plus = ModelLoader(

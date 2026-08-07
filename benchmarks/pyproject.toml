@@ -22,6 +22,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [project.optional-dependencies]
+rame = ["rame"]
 paddle-cpu = ["paddlepaddle==3.3.0", "paddlex[ocr]==3.7.2"]
 paddle-hpi-cpu = [
   "paddle2onnx==2.0.2rc3",
@@ -52,6 +53,7 @@ conflicts = [
 ]
 
 [tool.uv.sources]
+rame = { workspace = true, extra = "rame" }
 paddlepaddle = { index = "paddle-cpu", extra = "paddle-cpu" }
 paddlepaddle-gpu = [
   { index = "paddle-cu126", extra = "paddle-cu126" },
