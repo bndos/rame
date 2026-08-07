@@ -39,7 +39,8 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn from_rgb8(width: u32, height: u32, data: Vec<u8>) -> RameResult<Self> {
+    pub fn from_rgb8(width: u32, height: u32, data: impl Into<Vec<u8>>) -> RameResult<Self> {
+        let data = data.into();
         let expected_len = width as usize * height as usize * 3;
         if data.len() != expected_len {
             return Err(ImageError::InvalidRgbData {

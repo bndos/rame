@@ -2,7 +2,10 @@ use std::sync::OnceLock;
 
 use pyo3::prelude::*;
 
+mod error;
+mod image;
 mod layout;
+mod models;
 
 pub fn get_rame_python_version() -> &'static str {
     static RAME_PYTHON_VERSION: OnceLock<String> = OnceLock::new();
@@ -30,6 +33,8 @@ mod _native {
 
     #[pymodule_export]
     use crate::layout::{PyGeometry, PyLayoutRegion, PyLayoutResult};
+    #[pymodule_export]
+    use crate::models::pp_doclayout::PyPpDocLayoutPlusOnnx;
 
     #[pymodule_init]
     fn module_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
