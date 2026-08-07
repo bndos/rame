@@ -17,6 +17,8 @@ fmt:
 	yamlfmt .github/workflows
 	cd benchmarks && uv run ruff check --fix --select I .
 	cd benchmarks && uv run ruff format .
+	cd python && uv run ruff check --fix --select I .
+	cd python && uv run ruff format .
 
 .PHONY: check
 check:
@@ -25,6 +27,8 @@ check:
 	yamlfmt -lint .github/workflows
 	cd benchmarks && uv run ruff format --check .
 	cd benchmarks && uv run ruff check .
+	cd python && uv run ruff format --check .
+	cd python && uv run ruff check .
 	cargo clippy $(FEATURES) --lib
 	cargo clippy -p rame-bench --all-targets
 	cargo clippy -p rame-python --all-targets
