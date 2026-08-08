@@ -1,0 +1,23 @@
+defaults:
+  tasks:
+    - layout-throughput-micro
+  batch_size: 32
+  warmup: 0
+  repeats: 1
+
+runs:
+  rame-onnxruntime-cpu:
+    model: rame-pp-doclayout-plus-onnx
+    overrides:
+      engine_config:
+        intra_op_num_threads: 10
+
+  paddlex-hpi-onnxruntime-cpu:
+    model: paddlex-pp-doclayout-plus-hpi-onnxruntime-cpu
+    overrides:
+      engine_config:
+        backend_config:
+          cpu_num_threads: 10
+
+  paddlex-hpi-auto-cpu:
+    model: paddlex-pp-doclayout-plus-hpi-auto-cpu

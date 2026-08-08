@@ -5,11 +5,10 @@ from typing import Annotated
 
 import typer
 
-from rame_benchmarks.config import load_run_config
+from rame_benchmarks.benchmark import Benchmark, BenchmarkSuite
+from rame_benchmarks.config import load_benchmark_config
 from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model_metas
 from rame_benchmarks.overrides import parse_overrides
-from rame_benchmarks.reporting import print_task_results, write_task_results_json
-from rame_benchmarks.runner import run_benchmark
 from rame_benchmarks.tasks import TaskName, get_tasks
 
 app = typer.Typer(no_args_is_help=True)
@@ -82,7 +81,7 @@ def run(
         ),
     ] = None,
 ) -> None:
-    results = run_benchmark(
+    benchmark = Benchmark(
         model=model,
         task_names=tuple(task_names) if task_names else None,
         output_folder=output_folder,
@@ -91,9 +90,10 @@ def run(
         repeats=repeats,
         overrides=parse_overrides(overrides),
     )
-    print_task_results(model, results)
+    result = benchmark.run()
+    result.print()
     if output is not None:
-        write_task_results_json(output, model, results)
+        result.write_json(output)
 
 
 @app.command("run-config")
@@ -103,16 +103,8 @@ def run_config(
         typer.Argument(help="YAML benchmark config path."),
     ],
 ) -> None:
-    config = load_run_config(config_path)
-    results = run_benchmark(
-        model=config.model,
-        task_names=config.task_names,
-        output_folder=config.output_folder,
-        batch_size=config.batch_size,
-        warmup=config.warmup,
-        repeats=config.repeats,
-        overrides=config.overrides,
-    )
-    print_task_results(config.model, results)
-    if config.output is not None:
-        write_task_results_json(config.output, config.model, results)
+    suite = BenchmarkSuite.from_config(load_benchmark_config(config_path))
+    result = suite.run()
+    result.print()
+    if suite.output is not None:
+        result.write_json(suite.output)
