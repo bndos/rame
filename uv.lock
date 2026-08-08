@@ -2012,6 +2012,7 @@ dependencies = [
     { name = "numpy" },
     { name = "omegaconf" },
     { name = "pillow" },
+    { name = "pydantic" },
     { name = "rich" },
     { name = "typer" },
 ]
@@ -2062,6 +2063,7 @@ requires-dist = [
     { name = "paddlex", extras = ["ocr"], marker = "extra == 'paddle-cu130'", specifier = "==3.7.2" },
     { name = "paddlex", extras = ["ocr"], marker = "extra == 'paddle-hpi-cpu'", specifier = "==3.7.2" },
     { name = "pillow", specifier = ">=12.0.0" },
+    { name = "pydantic", specifier = ">=2.12.0" },
     { name = "rame", marker = "extra == 'rame'", editable = "python" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "typer", specifier = ">=0.20.0" },

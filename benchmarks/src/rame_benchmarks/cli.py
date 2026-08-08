@@ -5,9 +5,11 @@ from typing import Annotated
 
 import typer
 
-from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model, get_model_metas
+from rame_benchmarks.config import load_run_config
+from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model_metas
 from rame_benchmarks.overrides import parse_overrides
 from rame_benchmarks.reporting import print_task_results, write_task_results_json
+from rame_benchmarks.runner import run_benchmark
 from rame_benchmarks.tasks import TaskName, get_tasks
 
 app = typer.Typer(no_args_is_help=True)
@@ -80,22 +82,37 @@ def run(
         ),
     ] = None,
 ) -> None:
-    tasks = get_tasks(tuple(task_names) if task_names else None)
-    data_folder = output_folder / "data"
-    loaded_model = get_model(model, **parse_overrides(overrides))
-    results = []
-
-    for task in tasks:
-        task_output_folder = data_folder / task.name.value
-        result = task.evaluate(
-            loaded_model,
-            task_output_folder,
-            batch_size=batch_size,
-            warmup=warmup,
-            repeats=repeats,
-        )
-        results.append(result)
-
+    results = run_benchmark(
+        model=model,
+        task_names=tuple(task_names) if task_names else None,
+        output_folder=output_folder,
+        batch_size=batch_size,
+        warmup=warmup,
+        repeats=repeats,
+        overrides=parse_overrides(overrides),
+    )
     print_task_results(model, results)
     if output is not None:
         write_task_results_json(output, model, results)
+
+
+@app.command("run-config")
+def run_config(
+    config_path: Annotated[
+        Path,
+        typer.Argument(help="YAML benchmark config path."),
+    ],
+) -> None:
+    config = load_run_config(config_path)
+    results = run_benchmark(
+        model=config.model,
+        task_names=config.task_names,
+        output_folder=config.output_folder,
+        batch_size=config.batch_size,
+        warmup=config.warmup,
+        repeats=config.repeats,
+        overrides=config.overrides,
+    )
+    print_task_results(config.model, results)
+    if config.output is not None:
+        write_task_results_json(config.output, config.model, results)
