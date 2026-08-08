@@ -13,7 +13,7 @@ help:
 .PHONY: fmt
 fmt:
 	cargo fmt
-	taplo format pyproject.toml Cargo.toml benchmarks/pyproject.toml benchmarks/rame-bench/Cargo.toml python/Cargo.toml python/pyproject.toml
+	taplo format pyproject.toml Cargo.toml benchmarks/pyproject.toml python/Cargo.toml python/pyproject.toml
 	yamlfmt .github/workflows
 	uvx ruff check --fix .
 	uvx ruff format .
@@ -21,15 +21,13 @@ fmt:
 .PHONY: check
 check:
 	cargo fmt --check
-	taplo format --check pyproject.toml Cargo.toml benchmarks/pyproject.toml benchmarks/rame-bench/Cargo.toml python/Cargo.toml python/pyproject.toml
+	taplo format --check pyproject.toml Cargo.toml benchmarks/pyproject.toml python/Cargo.toml python/pyproject.toml
 	yamlfmt -lint .github/workflows
 	uvx ruff format --check .
 	uvx ruff check .
 	cargo clippy $(FEATURES) --lib
-	cargo clippy -p rame-bench --all-targets
 	cargo clippy -p rame-python --all-targets
 	cargo test $(FEATURES)
-	cargo test -p rame-bench
 	cargo test -p rame-python
 
 .PHONY: test
