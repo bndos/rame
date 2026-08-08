@@ -12,7 +12,16 @@ rame_pp_doclayout_plus_onnx = ModelLoader(
         name="rame-pp-doclayout-plus-onnx",
         description="rame PP-DocLayout Plus ONNX implementation.",
     ),
-    loader=RameLayoutDetectionModel,
+    loader=partial(
+        RameLayoutDetectionModel,
+        source="PaddlePaddle/PP-DocLayout_plus-L_onnx",
+        engine="onnxruntime",
+    ),
+    loader_kwargs={
+        "engine_config": {
+            "intra_op_num_threads": 10,
+        },
+    },
 )
 
 paddle_pp_doclayout_plus = ModelLoader(
@@ -49,15 +58,16 @@ paddlex_pp_doclayout_plus_hpi_onnxruntime_cpu = ModelLoader(
         model_name="PP-DocLayout_plus-L",
         device="cpu",
         engine="hpi",
-        engine_config={
+    ),
+    loader_kwargs={
+        "engine_config": {
             "auto_config": False,
             "backend": "onnxruntime",
             "backend_config": {
-                # TODO: use args for threads
                 "cpu_num_threads": 10,
             },
         },
-    ),
+    },
 )
 
 paddle_pp_doclayout_v3 = ModelLoader(

@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model, get_model_metas
+from rame_benchmarks.overrides import parse_overrides
 from rame_benchmarks.reporting import print_task_results, write_task_results_json
 from rame_benchmarks.tasks import TaskName, get_tasks
 
@@ -70,10 +71,18 @@ def run(
         Path | None,
         typer.Option("--output", help="Optional JSON output path."),
     ] = None,
+    overrides: Annotated[
+        list[str] | None,
+        typer.Option(
+            "-o",
+            "--override",
+            help="Model config override, e.g. engine_config.intra_op_num_threads=10.",
+        ),
+    ] = None,
 ) -> None:
     tasks = get_tasks(tuple(task_names) if task_names else None)
     data_folder = output_folder / "data"
-    loaded_model = get_model(model)
+    loaded_model = get_model(model, **parse_overrides(overrides))
     results = []
 
     for task in tasks:
