@@ -1,4 +1,6 @@
 FEATURES ?= --all-features
+TOML_FILES := $(shell git ls-files --cached --others --exclude-standard '*.toml')
+YAML_FILES := $(shell git ls-files --cached --others --exclude-standard '*.yaml' '*.yml')
 
 .PHONY: help
 help:
@@ -13,16 +15,16 @@ help:
 .PHONY: fmt
 fmt:
 	cargo fmt
-	taplo format pyproject.toml Cargo.toml benchmarks/pyproject.toml python/Cargo.toml python/pyproject.toml
-	yamlfmt .github/workflows
+	taplo format $(TOML_FILES)
+	yamlfmt $(YAML_FILES)
 	uvx ruff check --fix .
 	uvx ruff format .
 
 .PHONY: check
 check:
 	cargo fmt --check
-	taplo format --check pyproject.toml Cargo.toml benchmarks/pyproject.toml python/Cargo.toml python/pyproject.toml
-	yamlfmt -lint .github/workflows
+	taplo format --check $(TOML_FILES)
+	yamlfmt -lint $(YAML_FILES)
 	uvx ruff format --check .
 	uvx ruff check .
 	cargo clippy $(FEATURES) --lib
