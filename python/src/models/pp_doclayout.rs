@@ -2,8 +2,10 @@ use numpy::PyReadonlyArray3;
 use pyo3::prelude::*;
 use rame::layout::LayoutModel;
 use rame::models::pp_doclayout::plus::{self, PpDocLayoutPlus};
+use rame::session::ort::OrtSessionConfig;
 use rame::sources::HuggingFace;
 
+use crate::engine::PyOrtSessionConfig;
 use crate::error::into_py_err;
 use crate::image::array_to_image;
 use crate::layout::PyLayoutResult;
@@ -15,16 +17,25 @@ pub(crate) struct PyPpDocLayoutPlusOnnx {
 
 #[pymethods]
 impl PyPpDocLayoutPlusOnnx {
-    // TODO: Accept engine and artifact parameters.
     #[new]
-    fn new(py: Python<'_>, source: &str) -> PyResult<Self> {
+    #[pyo3(signature = (source, engine_config=None))]
+    fn new(
+        py: Python<'_>,
+        source: &str,
+        engine_config: Option<PyRef<'_, PyOrtSessionConfig>>,
+    ) -> PyResult<Self> {
         let hf = HuggingFace::new().map_err(into_py_err)?;
         let hf_source = hf.model(source);
+        let session_config = engine_config
+            .as_deref()
+            .map(OrtSessionConfig::from)
+            .unwrap_or_default();
+        let artifact = plus::onnx::Artifact::default().session_config(session_config);
         let model = py
             .detach(|| {
                 PpDocLayoutPlus::builder()
                     .source(hf_source)
-                    .artifact(plus::onnx::Artifact::default())
+                    .artifact(artifact)
                     .build()
             })
             .map_err(into_py_err)?;

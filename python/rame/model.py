@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 
 if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray
 
 from rame.layout import LayoutResult
+
+LayoutModelName: TypeAlias = Literal["pp-doclayout-plus"]
 
 
 class LayoutModel(Protocol):
@@ -18,4 +20,4 @@ class LayoutModel(Protocol):
     ) -> list[LayoutResult]: ...
 
 
-__all__ = ["LayoutModel"]
+__all__ = ["LayoutModel", "LayoutModelName"]

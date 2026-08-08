@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from rame import load_layout_model
+from rame import OrtSessionConfig, load_layout_model
 
 from rame_benchmarks.models.model_meta import ModelMeta
 from rame_benchmarks.models.models_protocols import LayoutPrediction
@@ -15,7 +15,8 @@ class RameLayoutDetectionModel:
         self._model = load_layout_model(
             "PaddlePaddle/PP-DocLayout_plus-L_onnx",
             model="pp-doclayout-plus",
-            engine="onnx",
+            engine="onnxruntime",
+            engine_config=OrtSessionConfig(intra_op_num_threads=10),
         )
 
     @property

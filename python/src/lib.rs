@@ -2,6 +2,7 @@ use std::sync::OnceLock;
 
 use pyo3::prelude::*;
 
+mod engine;
 mod error;
 mod image;
 mod layout;
@@ -31,6 +32,8 @@ mod _native {
     #[allow(clippy::wildcard_imports)]
     use super::*;
 
+    #[pymodule_export]
+    use crate::engine::PyOrtSessionConfig;
     #[pymodule_export]
     use crate::layout::{PyGeometry, PyLayoutRegion, PyLayoutResult};
     #[pymodule_export]

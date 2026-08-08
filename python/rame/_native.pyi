@@ -7,6 +7,8 @@ __all__ = [
     "Geometry",
     "LayoutRegion",
     "LayoutResult",
+    "OrtSessionConfig",
+    "PpDocLayoutPlusOnnx",
     "__version__",
     "build_info",
 ]
@@ -46,8 +48,23 @@ class LayoutResult:
     regions: list[LayoutRegion]
     """Detected layout regions."""
 
+class OrtSessionConfig:
+    """ONNX Runtime session configuration."""
+
+    intra_op_num_threads: int | None
+    inter_op_num_threads: int | None
+
+    def __init__(
+        self,
+        *,
+        intra_op_num_threads: int | None = None,
+        inter_op_num_threads: int | None = None,
+    ) -> None: ...
+
 class PpDocLayoutPlusOnnx:
-    def __init__(self, source: str) -> None: ...
+    def __init__(
+        self, source: str, engine_config: OrtSessionConfig | None = None
+    ) -> None: ...
     def detect_layout(self, image: NDArray[np.uint8]) -> LayoutResult: ...
     def detect_layout_many(
         self, images: list[NDArray[np.uint8]]
