@@ -33,7 +33,7 @@ mod _native {
     use super::*;
 
     #[pymodule_export]
-    use crate::engine::PyOrtSessionConfig;
+    use crate::engine::{PyOrtCpuConfig, PyOrtCudaConfig, PyOrtSessionConfig, PyOrtTrtConfig};
     #[pymodule_export]
     use crate::layout::{PyGeometry, PyLayoutRegion, PyLayoutResult};
     #[pymodule_export]

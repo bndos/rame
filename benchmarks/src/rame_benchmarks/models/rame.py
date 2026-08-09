@@ -3,7 +3,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from rame import EngineName, OrtSessionConfig, load_layout_model
+from rame import (
+    CpuExecutionProviderConfig,
+    CudaExecutionProviderConfig,
+    EngineName,
+    OrtSessionConfig,
+    TensorRtExecutionProviderConfig,
+    load_layout_model,
+)
 
 from rame_benchmarks.models.model_meta import ModelMeta
 from rame_benchmarks.models.models_protocols import LayoutPrediction
@@ -49,6 +56,37 @@ def engine_config_for(
 
     match engine:
         case "onnxruntime":
-            return OrtSessionConfig(**config)
+            return OrtSessionConfig(**_engine_config_kwargs(config))
         case _:
             raise ValueError(f"unsupported engine {engine!r} for RAME models")
+
+
+def _engine_config_kwargs(config: dict[str, Any]) -> dict[str, Any]:
+    kwargs = dict(config)
+    providers = kwargs.get("execution_providers")
+    if providers is None:
+        return kwargs
+    if not isinstance(providers, list):
+        raise TypeError("engine_config.execution_providers must be a list")
+
+    kwargs["execution_providers"] = [
+        _execution_provider_config(provider) for provider in providers
+    ]
+    return kwargs
+
+
+def _execution_provider_config(provider: object) -> object:
+    if not isinstance(provider, dict):
+        raise TypeError("engine_config.execution_providers entries must be mappings")
+
+    provider_kwargs = dict(provider)
+    kind = provider_kwargs.pop("kind", None)
+    match kind:
+        case "cpu":
+            return CpuExecutionProviderConfig(**provider_kwargs)
+        case "cuda":
+            return CudaExecutionProviderConfig(**provider_kwargs)
+        case "tensorrt":
+            return TensorRtExecutionProviderConfig(**provider_kwargs)
+        case _:
+            raise ValueError(f"unsupported ONNX Runtime execution provider {kind!r}")

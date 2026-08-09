@@ -7,7 +7,10 @@ __all__ = [
     "Geometry",
     "LayoutRegion",
     "LayoutResult",
+    "OrtCpuConfig",
+    "OrtCudaConfig",
     "OrtSessionConfig",
+    "OrtTrtConfig",
     "PpDocLayoutPlusOnnx",
     "__version__",
     "build_info",
@@ -48,17 +51,93 @@ class LayoutResult:
     regions: list[LayoutRegion]
     """Detected layout regions."""
 
-class OrtSessionConfig:
-    """ONNX Runtime session configuration."""
+class OrtCpuConfig:
+    """CPU execution provider configuration."""
 
-    intra_op_num_threads: int | None
-    inter_op_num_threads: int | None
+    arena_allocator: bool | None
+
+    def __init__(self, *, arena_allocator: bool | None = None) -> None: ...
+
+class OrtCudaConfig:
+    """CUDA execution provider configuration."""
+
+    device_id: int
+    memory_limit: int | None
+    arena_extend_strategy: str | None
+    conv_max_workspace: bool | None
+    tf32: bool | None
+    prefer_nhwc: bool | None
 
     def __init__(
         self,
         *,
+        device_id: int = 0,
+        memory_limit: int | None = None,
+        arena_extend_strategy: str | None = None,
+        conv_max_workspace: bool | None = None,
+        tf32: bool | None = None,
+        prefer_nhwc: bool | None = None,
+    ) -> None: ...
+
+class OrtTrtConfig:
+    """TensorRT execution provider configuration."""
+
+    device_id: int
+    fp16: bool
+    max_workspace_size: int | None
+    min_subgraph_size: int | None
+    max_partition_iterations: int | None
+    engine_cache: bool | None
+    engine_cache_path: str | None
+    engine_cache_prefix: str | None
+    context_memory_sharing: bool | None
+    timing_cache: bool | None
+    timing_cache_path: str | None
+    force_timing_cache: bool | None
+    auxiliary_streams: int | None
+
+    def __init__(
+        self,
+        *,
+        device_id: int = 0,
+        fp16: bool = False,
+        max_workspace_size: int | None = None,
+        min_subgraph_size: int | None = None,
+        max_partition_iterations: int | None = None,
+        engine_cache: bool | None = None,
+        engine_cache_path: str | None = None,
+        engine_cache_prefix: str | None = None,
+        context_memory_sharing: bool | None = None,
+        timing_cache: bool | None = None,
+        timing_cache_path: str | None = None,
+        force_timing_cache: bool | None = None,
+        auxiliary_streams: int | None = None,
+    ) -> None: ...
+
+class OrtSessionConfig:
+    """Private native ONNX Runtime session configuration."""
+
+    execution_providers: list[OrtCpuConfig | OrtCudaConfig | OrtTrtConfig]
+    graph_optimization_level: str | None
+    parallel_execution: bool | None
+    memory_pattern: bool | None
+    deterministic_compute: bool | None
+    intra_op_num_threads: int | None
+    inter_op_num_threads: int | None
+    config_entries: list[tuple[str, str]]
+
+    def __init__(
+        self,
+        *,
+        execution_providers: list[OrtCpuConfig | OrtCudaConfig | OrtTrtConfig]
+        | None = None,
+        graph_optimization_level: str | None = None,
+        parallel_execution: bool | None = None,
+        memory_pattern: bool | None = None,
+        deterministic_compute: bool | None = None,
         intra_op_num_threads: int | None = None,
         inter_op_num_threads: int | None = None,
+        config_entries: list[tuple[str, str]] = [],
     ) -> None: ...
 
 class PpDocLayoutPlusOnnx:

@@ -2,7 +2,6 @@ use numpy::PyReadonlyArray3;
 use pyo3::prelude::*;
 use rame::layout::LayoutModel;
 use rame::models::pp_doclayout::plus::{self, PpDocLayoutPlus};
-use rame::session::ort::OrtSessionConfig;
 use rame::sources::HuggingFace;
 
 use crate::engine::PyOrtSessionConfig;
@@ -28,7 +27,8 @@ impl PyPpDocLayoutPlusOnnx {
         let hf_source = hf.model(source);
         let session_config = engine_config
             .as_deref()
-            .map(OrtSessionConfig::from)
+            .map(PyOrtSessionConfig::to_ort_session_config)
+            .transpose()?
             .unwrap_or_default();
         let artifact = plus::onnx::Artifact::default().session_config(session_config);
         let model = py
