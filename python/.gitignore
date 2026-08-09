@@ -3,3 +3,4 @@
 /rame/__pycache__/
 /target/
 /.venv/
+/rame/libonnxruntime_providers_*.so

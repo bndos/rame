@@ -20,6 +20,7 @@ class PaddleLayoutDetectionModel:
         engine_config: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
+        ensure_device_available(device=device, engine=engine)
         from paddlex import create_predictor  # noqa: PLC0415
 
         self._benchmark_model_meta = benchmark_model_meta
@@ -55,3 +56,35 @@ class PaddleLayoutDetectionModel:
 
     def close(self) -> None:
         self._predictor.close()
+
+
+def ensure_device_available(*, device: str | None, engine: str | None) -> None:
+    """Fail early when paddlex cannot use GPU.
+
+    PaddleX can otherwise fail late in native code.
+    """
+    if device is None or not device.startswith("gpu"):
+        return
+
+    import paddle  # noqa: PLC0415
+
+    if not paddle.device.is_compiled_with_cuda():
+        raise RuntimeError(
+            "Paddle GPU benchmark requested, but Paddle is not built with CUDA"
+        )
+    if paddle.device.cuda.device_count() == 0:
+        raise RuntimeError(
+            "Paddle GPU benchmark requested, but no CUDA device is available"
+        )
+    if engine != "hpi":
+        return
+
+    import ultra_infer  # noqa: PLC0415
+
+    if (
+        hasattr(ultra_infer, "is_built_with_gpu")
+        and not ultra_infer.is_built_with_gpu()
+    ):
+        raise RuntimeError(
+            "Paddle HPI GPU benchmark requested, but ultra_infer is not built with GPU support"
+        )
