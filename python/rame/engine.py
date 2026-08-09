@@ -66,6 +66,14 @@ class TensorRtExecutionProviderConfig:
     timing_cache_path: str | None = None
     force_timing_cache: bool | None = None
     auxiliary_streams: int | None = None
+    profile_min_shapes: str | None = None
+    """TensorRT profile minimum input shapes, e.g. ``"image:1x3x800x800"``."""
+
+    profile_opt_shapes: str | None = None
+    """TensorRT profile optimal input shapes, e.g. ``"image:32x3x800x800"``."""
+
+    profile_max_shapes: str | None = None
+    """TensorRT profile maximum input shapes, e.g. ``"image:32x3x800x800"``."""
 
 
 ExecutionProviderConfig: TypeAlias = (

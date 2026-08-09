@@ -2,7 +2,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum OrtError {
-    #[error("ONNX Runtime error")]
+    #[error("ONNX Runtime error: {source}")]
     Runtime {
         #[source]
         source: ort::Error,

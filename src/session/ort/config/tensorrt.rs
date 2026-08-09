@@ -17,6 +17,9 @@ pub struct OrtTensorRtExecutionProviderConfig {
     pub timing_cache_path: Option<String>,
     pub force_timing_cache: Option<bool>,
     pub auxiliary_streams: Option<i8>,
+    pub profile_min_shapes: Option<String>,
+    pub profile_opt_shapes: Option<String>,
+    pub profile_max_shapes: Option<String>,
 }
 
 impl OrtTensorRtExecutionProviderConfig {
@@ -84,6 +87,21 @@ impl OrtTensorRtExecutionProviderConfig {
         self.auxiliary_streams = Some(streams);
         self
     }
+
+    pub fn profile_min_shapes(mut self, shapes: impl Into<String>) -> Self {
+        self.profile_min_shapes = Some(shapes.into());
+        self
+    }
+
+    pub fn profile_opt_shapes(mut self, shapes: impl Into<String>) -> Self {
+        self.profile_opt_shapes = Some(shapes.into());
+        self
+    }
+
+    pub fn profile_max_shapes(mut self, shapes: impl Into<String>) -> Self {
+        self.profile_max_shapes = Some(shapes.into());
+        self
+    }
 }
 
 impl From<OrtTensorRtExecutionProviderConfig> for ExecutionProviderDispatch {
@@ -124,6 +142,15 @@ impl From<OrtTensorRtExecutionProviderConfig> for ExecutionProviderDispatch {
         }
         if let Some(streams) = config.auxiliary_streams {
             provider = provider.with_auxiliary_streams(streams);
+        }
+        if let Some(shapes) = &config.profile_min_shapes {
+            provider = provider.with_profile_min_shapes(shapes);
+        }
+        if let Some(shapes) = &config.profile_opt_shapes {
+            provider = provider.with_profile_opt_shapes(shapes);
+        }
+        if let Some(shapes) = &config.profile_max_shapes {
+            provider = provider.with_profile_max_shapes(shapes);
         }
 
         provider.build().error_on_failure()

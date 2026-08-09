@@ -129,6 +129,9 @@ pub(crate) struct PyOrtTrtConfig {
     pub(crate) timing_cache_path: Option<String>,
     pub(crate) force_timing_cache: Option<bool>,
     pub(crate) auxiliary_streams: Option<i8>,
+    pub(crate) profile_min_shapes: Option<String>,
+    pub(crate) profile_opt_shapes: Option<String>,
+    pub(crate) profile_max_shapes: Option<String>,
 }
 
 #[pymethods]
@@ -149,6 +152,9 @@ impl PyOrtTrtConfig {
         timing_cache_path=None,
         force_timing_cache=None,
         auxiliary_streams=None,
+        profile_min_shapes=None,
+        profile_opt_shapes=None,
+        profile_max_shapes=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -165,6 +171,9 @@ impl PyOrtTrtConfig {
         timing_cache_path: Option<String>,
         force_timing_cache: Option<bool>,
         auxiliary_streams: Option<i8>,
+        profile_min_shapes: Option<String>,
+        profile_opt_shapes: Option<String>,
+        profile_max_shapes: Option<String>,
     ) -> Self {
         Self {
             device_id,
@@ -180,6 +189,9 @@ impl PyOrtTrtConfig {
             timing_cache_path,
             force_timing_cache,
             auxiliary_streams,
+            profile_min_shapes,
+            profile_opt_shapes,
+            profile_max_shapes,
         }
     }
 }

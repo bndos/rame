@@ -43,6 +43,15 @@ impl TryFrom<&PyOrtTrtConfig> for OrtTensorRtExecutionProviderConfig {
         if let Some(streams) = config.auxiliary_streams {
             ep = ep.auxiliary_streams(streams);
         }
+        if let Some(shapes) = &config.profile_min_shapes {
+            ep = ep.profile_min_shapes(shapes.clone());
+        }
+        if let Some(shapes) = &config.profile_opt_shapes {
+            ep = ep.profile_opt_shapes(shapes.clone());
+        }
+        if let Some(shapes) = &config.profile_max_shapes {
+            ep = ep.profile_max_shapes(shapes.clone());
+        }
         Ok(ep)
     }
 }

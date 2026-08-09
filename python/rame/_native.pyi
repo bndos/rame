@@ -95,6 +95,9 @@ class OrtTrtConfig:
     timing_cache_path: str | None
     force_timing_cache: bool | None
     auxiliary_streams: int | None
+    profile_min_shapes: str | None
+    profile_opt_shapes: str | None
+    profile_max_shapes: str | None
 
     def __init__(
         self,
@@ -112,6 +115,9 @@ class OrtTrtConfig:
         timing_cache_path: str | None = None,
         force_timing_cache: bool | None = None,
         auxiliary_streams: int | None = None,
+        profile_min_shapes: str | None = None,
+        profile_opt_shapes: str | None = None,
+        profile_max_shapes: str | None = None,
     ) -> None: ...
 
 class OrtSessionConfig:
