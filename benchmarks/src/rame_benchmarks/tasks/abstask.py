@@ -59,7 +59,7 @@ class AbsTask(ABC):
         output_dir: Path,
         *,
         batch_size: int,
-        warmup: int,
+        warmup_batches: int,
         repeats: int,
     ) -> TaskResult:
         if not self.data_loaded:
@@ -68,7 +68,7 @@ class AbsTask(ABC):
         return self._evaluate(
             model,
             batch_size=batch_size,
-            warmup=warmup,
+            warmup_batches=warmup_batches,
             repeats=repeats,
         )
 
@@ -78,6 +78,6 @@ class AbsTask(ABC):
         model: BenchmarkModel,
         *,
         batch_size: int,
-        warmup: int,
+        warmup_batches: int,
         repeats: int,
     ) -> TaskResult: ...

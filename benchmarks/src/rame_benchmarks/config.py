@@ -17,7 +17,7 @@ class RunDefaults(BaseModel):
     tasks: tuple[TaskName, ...] | None = None
     output_folder: Path = Path("results")
     batch_size: int = Field(default=32, gt=0)
-    warmup: int = Field(default=0, ge=0)
+    warmup_batches: int = Field(default=0, ge=0)
     repeats: int = Field(default=1, gt=0)
 
     @property
@@ -32,7 +32,7 @@ class RunConfig(BaseModel):
     tasks: tuple[TaskName, ...] | None = None
     output_folder: Path | None = None
     batch_size: int | None = Field(default=None, gt=0)
-    warmup: int | None = Field(default=None, ge=0)
+    warmup_batches: int | None = Field(default=None, ge=0)
     repeats: int | None = Field(default=None, gt=0)
     overrides: dict[str, Any] = Field(default_factory=dict)
 
@@ -42,7 +42,9 @@ class RunConfig(BaseModel):
             tasks=self.tasks if self.tasks is not None else defaults.tasks,
             output_folder=self.output_folder or defaults.output_folder,
             batch_size=self.batch_size or defaults.batch_size,
-            warmup=defaults.warmup if self.warmup is None else self.warmup,
+            warmup_batches=defaults.warmup_batches
+            if self.warmup_batches is None
+            else self.warmup_batches,
             repeats=self.repeats or defaults.repeats,
             overrides=self.overrides,
         )

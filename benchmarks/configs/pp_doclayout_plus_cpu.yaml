@@ -2,7 +2,7 @@ defaults:
   tasks:
     - layout-throughput-micro
   batch_size: 32
-  warmup: 0
+  warmup_batches: 0
   repeats: 1
 runs:
   rame-onnxruntime-cpu:

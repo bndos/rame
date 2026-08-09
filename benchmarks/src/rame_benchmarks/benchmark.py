@@ -19,7 +19,7 @@ class Benchmark:
     task_names: tuple[TaskName, ...] | None = None
     output_folder: Path = Path("results")
     batch_size: int = 32
-    warmup: int = 0
+    warmup_batches: int = 0
     repeats: int = 1
     overrides: dict[str, Any] | None = None
 
@@ -38,7 +38,7 @@ class Benchmark:
                 loaded_model,
                 task_output_folder,
                 batch_size=self.batch_size,
-                warmup=self.warmup,
+                warmup_batches=self.warmup_batches,
                 repeats=self.repeats,
             )
             results.append(result)
@@ -60,7 +60,7 @@ class BenchmarkSuite:
                     task_names=run.task_names,
                     output_folder=run.output_folder,
                     batch_size=run.batch_size,
-                    warmup=run.warmup,
+                    warmup_batches=run.warmup_batches,
                     repeats=run.repeats,
                     overrides=run.overrides,
                 )

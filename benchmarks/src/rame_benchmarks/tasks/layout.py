@@ -81,22 +81,21 @@ class LayoutTaskBase(AbsTask):
         model: BenchmarkModel,
         *,
         batch_size: int,
-        warmup: int,
+        warmup_batches: int,
         repeats: int,
     ) -> TaskResult:
         if batch_size <= 0:
             raise ValueError("batch_size must be greater than zero")
-        if warmup < 0:
-            raise ValueError("warmup must be greater than or equal to zero")
+        if warmup_batches < 0:
+            raise ValueError("warmup_batches must be greater than or equal to zero")
         if repeats <= 0:
             raise ValueError("repeats must be greater than zero")
         if not self.data_loaded:
             raise RuntimeError("task data must be loaded before evaluation")
 
         batches = list(chunked(self.image_samples, batch_size))
-        for _ in range(warmup):
-            for batch in batches:
-                model.detect_layout_many(batch)
+        for batch in batches[:warmup_batches]:
+            model.detect_layout_many(batch)
 
         started = perf_counter()
         for _ in range(repeats):
@@ -109,7 +108,7 @@ class LayoutTaskBase(AbsTask):
             task_name=self.name,
             metrics=(
                 TaskMetric("samples", len(self.image_samples)),
-                TaskMetric("warmup", warmup),
+                TaskMetric("warmup_batches", warmup_batches),
                 TaskMetric("repeats", repeats),
                 TaskMetric("total_samples", total_samples),
                 TaskMetric("batches", len(batches) * repeats),

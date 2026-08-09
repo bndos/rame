@@ -60,9 +60,9 @@ def run(
             "--batch-size", help="Number of samples per model prediction batch."
         ),
     ] = 32,
-    warmup: Annotated[
+    warmup_batches: Annotated[
         int,
-        typer.Option("--warmup", help="Untimed full-dataset warmup passes."),
+        typer.Option("--warmup-batches", help="Untimed batches before measurement."),
     ] = 0,
     repeats: Annotated[
         int,
@@ -86,7 +86,7 @@ def run(
         task_names=tuple(task_names) if task_names else None,
         output_folder=output_folder,
         batch_size=batch_size,
-        warmup=warmup,
+        warmup_batches=warmup_batches,
         repeats=repeats,
         overrides=parse_overrides(overrides),
     )
