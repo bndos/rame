@@ -59,6 +59,7 @@ class BenchmarkConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     defaults: RunDefaults = Field(default_factory=RunDefaults)
+    isolate_runs: bool = False
     output: Path | None = None
     runs: dict[str, RunConfig]
 

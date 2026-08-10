@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
+import traceback
 from dataclasses import asdict, dataclass
+from multiprocessing.connection import Connection
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +28,42 @@ class Benchmark:
 
     def run(self) -> BenchmarkResult:
         return BenchmarkResult(runs=[self.run_once()])
+
+    def run_isolated_once(self, name: str) -> BenchmarkRunResult:
+        context = mp.get_context("spawn")
+        parent_connection, child_connection = context.Pipe(duplex=False)
+        process = context.Process(
+            target=_run_benchmark_child,
+            args=(name, self, child_connection),
+            name=f"rame-bench-{name}",
+        )
+
+        process.start()
+        child_connection.close()
+        process.join()
+
+        if not parent_connection.poll():
+            exitcode = process.exitcode
+            process.close()
+            raise RuntimeError(
+                f"isolated benchmark run {name!r} exited without a result "
+                f"(exit code {exitcode})"
+            )
+
+        message = parent_connection.recv()
+        process.close()
+        match message:
+            case ("ok", result):
+                return result
+            case ("err", error_type, error_message, error_traceback):
+                raise RuntimeError(
+                    f"isolated benchmark run {name!r} failed with "
+                    f"{error_type}: {error_message}\n{error_traceback}"
+                )
+            case _:
+                raise RuntimeError(
+                    f"isolated benchmark run {name!r} returned {message!r}"
+                )
 
     def run_once(self, name: str | None = None) -> BenchmarkRunResult:
         tasks = get_tasks(self.task_names)
@@ -73,6 +112,35 @@ class BenchmarkSuite:
         return BenchmarkResult(
             runs=[benchmark.run_once(name) for name, benchmark in self.runs.items()]
         )
+
+    def run_isolated(self) -> BenchmarkResult:
+        return BenchmarkResult(
+            runs=[
+                benchmark.run_isolated_once(name)
+                for name, benchmark in self.runs.items()
+            ]
+        )
+
+
+IsolatedRunMessage = tuple[str, Any] | tuple[str, str, str, str]
+
+
+def _run_benchmark_child(
+    name: str,
+    benchmark: Benchmark,
+    connection: Connection,
+) -> None:
+    try:
+        result: IsolatedRunMessage = ("ok", benchmark.run_once(name))
+    except Exception as err:
+        result = (
+            "err",
+            type(err).__name__,
+            str(err),
+            traceback.format_exc(),
+        )
+    connection.send(result)
+    connection.close()
 
 
 @dataclass(frozen=True)

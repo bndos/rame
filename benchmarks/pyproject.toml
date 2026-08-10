@@ -33,6 +33,15 @@ paddle-hpi-cpu = [
   "ultra-infer-python @ https://paddle-model-ecology.bj.bcebos.com/paddlex/PaddleX3.0/deploy/hpi/ultra_infer/releases/new_hpi/v1.2.0/ultra_infer_python-1.2.0-cp311-cp311-linux_x86_64.whl ; python_version == '3.11' and platform_system == 'Linux' and platform_machine == 'x86_64'",
   "ultra-infer-python @ https://paddle-model-ecology.bj.bcebos.com/paddlex/PaddleX3.0/deploy/hpi/ultra_infer/releases/new_hpi/v1.2.0/ultra_infer_python-1.2.0-cp312-cp312-linux_x86_64.whl ; python_version == '3.12' and platform_system == 'Linux' and platform_machine == 'x86_64'",
 ]
+paddle-cu118 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
+paddle-hpi-gpu-cu118 = [
+  "nvidia-nvjpeg-cu11==11.9.0.86",
+  "paddle2onnx==2.0.2rc3",
+  "paddlepaddle-gpu==3.3.0",
+  "paddlex[ocr]==3.7.2",
+  "ultra-infer-gpu-python @ https://paddle-model-ecology.bj.bcebos.com/paddlex/PaddleX3.0/deploy/hpi/ultra_infer/releases/new_hpi/v1.2.0/ultra_infer_gpu_python-1.2.0-cp311-cp311-linux_x86_64.whl ; python_version == '3.11' and platform_system == 'Linux' and platform_machine == 'x86_64'",
+  "ultra-infer-gpu-python @ https://paddle-model-ecology.bj.bcebos.com/paddlex/PaddleX3.0/deploy/hpi/ultra_infer/releases/new_hpi/v1.2.0/ultra_infer_gpu_python-1.2.0-cp312-cp312-linux_x86_64.whl ; python_version == '3.12' and platform_system == 'Linux' and platform_machine == 'x86_64'",
+]
 paddle-cu126 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
 paddle-cu129 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
 paddle-cu130 = ["paddlepaddle-gpu==3.3.0", "paddlex[ocr]==3.7.2"]
@@ -48,6 +57,8 @@ conflicts = [
   [
     { extra = "paddle-cpu" },
     { extra = "paddle-hpi-cpu" },
+    { extra = "paddle-cu118" },
+    { extra = "paddle-hpi-gpu-cu118" },
     { extra = "paddle-cu126" },
     { extra = "paddle-cu129" },
     { extra = "paddle-cu130" },
@@ -58,6 +69,8 @@ conflicts = [
 rame = { workspace = true, extra = "rame" }
 paddlepaddle = { index = "paddle-cpu", extra = "paddle-cpu" }
 paddlepaddle-gpu = [
+  { index = "paddle-cu118", extra = "paddle-cu118" },
+  { index = "paddle-cu118", extra = "paddle-hpi-gpu-cu118" },
   { index = "paddle-cu126", extra = "paddle-cu126" },
   { index = "paddle-cu129", extra = "paddle-cu129" },
   { index = "paddle-cu130", extra = "paddle-cu130" },
@@ -66,6 +79,11 @@ paddlepaddle-gpu = [
 [[tool.uv.index]]
 name = "paddle-cpu"
 url = "https://www.paddlepaddle.org.cn/packages/stable/cpu/"
+explicit = true
+
+[[tool.uv.index]]
+name = "paddle-cu118"
+url = "https://www.paddlepaddle.org.cn/packages/stable/cu118/"
 explicit = true
 
 [[tool.uv.index]]

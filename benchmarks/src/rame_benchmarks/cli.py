@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from rame_benchmarks.benchmark import Benchmark, BenchmarkSuite
+from rame_benchmarks.benchmark import Benchmark, BenchmarkResult, BenchmarkSuite
 from rame_benchmarks.config import load_benchmark_config
 from rame_benchmarks.models import MODEL_REGISTRY, ModelName, get_model_metas
 from rame_benchmarks.overrides import parse_overrides
@@ -102,9 +102,29 @@ def run_config(
         Path,
         typer.Argument(help="YAML benchmark config path."),
     ],
+    run_name: Annotated[
+        str | None,
+        typer.Option("--run", help="Run only one named config row."),
+    ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", help="Override JSON output path."),
+    ] = None,
 ) -> None:
-    suite = BenchmarkSuite.from_config(load_benchmark_config(config_path))
-    result = suite.run()
+    config = load_benchmark_config(config_path)
+    suite = BenchmarkSuite.from_config(config)
+
+    if run_name is not None:
+        benchmark = suite.runs.get(run_name)
+        if benchmark is None:
+            raise typer.BadParameter(f"unknown benchmark run {run_name!r}")
+        result = BenchmarkResult(runs=[benchmark.run_once(run_name)])
+    elif config.isolate_runs:
+        result = suite.run_isolated()
+    else:
+        result = suite.run()
+
     result.print()
-    if suite.output is not None:
-        result.write_json(suite.output)
+    output_path = output if output is not None else suite.output
+    if output_path is not None:
+        result.write_json(output_path)
