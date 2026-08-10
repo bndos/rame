@@ -1,4 +1,5 @@
 FEATURES ?= --all-features
+BENCH_EXTRAS ?= rame paddle-hpi-gpu-cu118
 TOML_FILES := $(shell git ls-files --cached --others --exclude-standard '*.toml')
 YAML_FILES := $(shell git ls-files --cached --others --exclude-standard '*.yaml' '*.yml')
 
@@ -10,7 +11,8 @@ help:
 		'  make check     Run format checks, Clippy, and tests' \
 		'  make test      Run tests with FEATURES' \
 		'  make hooks     Install Lefthook and sync Git hooks' \
-		'  make bench-env Sync benchmark environment; set EXTRA=paddle-cu126 as needed'
+		'  make bench-env Sync benchmark environment with BENCH_EXTRAS' \
+		'  make bench-run-config CONFIG=... Run benchmark config'
 
 .PHONY: fmt
 fmt:
@@ -52,4 +54,9 @@ hooks:
 
 .PHONY: bench-env
 bench-env:
-	cd benchmarks && uv sync $(if $(EXTRA),--extra $(EXTRA),)
+	uv sync $(foreach extra,$(BENCH_EXTRAS),--extra $(extra))
+
+.PHONY: bench-run-config
+bench-run-config:
+	@test -n "$(CONFIG)" || (printf '%s\n' 'usage: make bench-run-config CONFIG=configs/name.yaml'; exit 2)
+	uv run rame-bench run-config $(abspath $(CONFIG))
