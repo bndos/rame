@@ -1,19 +1,19 @@
 use ndarray::Array3;
-use opencv::core::{Mat, MatTraitConstManual, Vec3b};
+use opencv::core::{MatTraitConstManual, Vec3b};
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::vision::NormalizeImage;
-use crate::preprocess::vision::opencv::state::OpenCvVisionBatch;
+use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch};
 
 impl NormalizeImage {
-    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
         batch.normalized_images = Some(
             batch
                 .items
                 .iter()
-                .map(|item| self.normalize_mat(&item.image))
+                .map(|item| self.normalize_image(&item.image))
                 .collect::<RameResult<Vec<_>>>()?,
         );
 
@@ -22,7 +22,17 @@ impl NormalizeImage {
 }
 
 impl NormalizeImage {
-    fn normalize_mat(&self, image: &Mat) -> RameResult<Array3<f32>> {
+    fn normalize_image(&self, image: &OpenCvImage<'_>) -> RameResult<Array3<f32>> {
+        match image {
+            OpenCvImage::Borrowed(image) => self.normalize_mat(image),
+            OpenCvImage::Owned(image) => self.normalize_mat(image),
+        }
+    }
+
+    fn normalize_mat<T>(&self, image: &T) -> RameResult<Array3<f32>>
+    where
+        T: MatTraitConst + MatTraitConstManual,
+    {
         let size = image.size().map_err(PreprocessError::from)?;
         let width = size.width as usize;
         let height = size.height as usize;

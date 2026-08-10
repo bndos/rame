@@ -85,9 +85,7 @@ mod tests {
             },
         );
 
-        let processed = processor
-            .process_many(std::slice::from_ref(&image))
-            .unwrap();
+        let processed = processor.process_many(&[image]).unwrap();
 
         assert_eq!(processed.len, 1);
         assert_eq!(processed.contexts.len(), 1);

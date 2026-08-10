@@ -39,14 +39,15 @@ where
             return Ok(Vec::new());
         }
 
+        let source_len = sources.len();
         let processed = crate::instrumentation::time_stage!(
             "rame_pipeline_preprocess_duration",
             self.processor.process_many(sources)
         )?;
-        if processed.len != sources.len() {
+        if processed.len != source_len {
             return Err(RameError::InvalidBatchLength {
                 stage: "processor output",
-                expected: sources.len(),
+                expected: source_len,
                 actual: processed.len,
             });
         }

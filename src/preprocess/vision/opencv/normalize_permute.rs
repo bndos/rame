@@ -1,10 +1,10 @@
 use ndarray::Array4;
-use opencv::core::{self, Mat, Size, Vector};
+use opencv::core::{self, Mat, Size, ToInputArray, Vector};
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::vision::opencv::state::OpenCvVisionBatch;
+use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch};
 use crate::preprocess::vision::{NormalizeImage, Permute, TensorLayout};
 
 #[derive(Debug, Clone, Copy)]
@@ -20,7 +20,7 @@ impl NormalizeAndPermute {
 }
 
 impl NormalizeAndPermute {
-    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
         match self.permute.layout {
             TensorLayout::Nchw => self.apply_nchw(batch),
         }
@@ -28,7 +28,7 @@ impl NormalizeAndPermute {
 }
 
 impl NormalizeAndPermute {
-    fn apply_nchw(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+    fn apply_nchw(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
         if batch.items.is_empty() {
             return Ok(());
         }
@@ -47,7 +47,7 @@ impl NormalizeAndPermute {
             ensure_size(&item.image, size)?;
             let start = index * 3 * plane;
             let end = start + 3 * plane;
-            self.normalize_mat_into_nchw(
+            self.normalize_image_into_nchw(
                 &item.image,
                 height,
                 width,
@@ -63,9 +63,27 @@ impl NormalizeAndPermute {
 }
 
 impl NormalizeAndPermute {
+    fn normalize_image_into_nchw(
+        &self,
+        image: &OpenCvImage<'_>,
+        height: usize,
+        width: usize,
+        plane: usize,
+        output: &mut [f32],
+    ) -> RameResult<()> {
+        match image {
+            OpenCvImage::Borrowed(image) => {
+                self.normalize_mat_into_nchw(image, height, width, plane, output)
+            }
+            OpenCvImage::Owned(image) => {
+                self.normalize_mat_into_nchw(image, height, width, plane, output)
+            }
+        }
+    }
+
     fn normalize_mat_into_nchw(
         &self,
-        image: &Mat,
+        image: &impl ToInputArray,
         height: usize,
         width: usize,
         plane: usize,
@@ -101,7 +119,7 @@ impl NormalizeAndPermute {
     }
 }
 
-fn ensure_size(image: &Mat, expected: Size) -> RameResult<()> {
+fn ensure_size(image: &OpenCvImage<'_>, expected: Size) -> RameResult<()> {
     let actual = image.size().map_err(PreprocessError::from)?;
     if actual == expected {
         return Ok(());

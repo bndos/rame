@@ -7,15 +7,17 @@ pub trait PreprocessBackend: Sized {
     /// Raw input consumed by this preprocessing state.
     type Source;
     /// Mutable batch threaded through every preprocessing op.
-    type Batch;
+    type Batch<'a>
+    where
+        Self::Source: 'a;
     /// Output produced after all preprocessing ops have run over a batch.
     type Output;
     /// Typed operation IR compiled by this backend.
     type Op: PreprocessOp<Self>;
 
-    fn batch(&self, sources: &[Self::Source]) -> RameResult<Self::Batch>;
+    fn batch<'a>(&self, sources: &'a [Self::Source]) -> RameResult<Self::Batch<'a>>;
 
-    fn finish(&self, batch: Self::Batch) -> RameResult<Self::Output>;
+    fn finish(&self, batch: Self::Batch<'_>) -> RameResult<Self::Output>;
 
     fn compile(&self, ops: &mut Vec<Self::Op>);
 
@@ -35,7 +37,9 @@ pub trait PreprocessOp<B>: fmt::Debug + Send + Sync
 where
     B: PreprocessBackend,
 {
-    fn apply(&self, batch: &mut B::Batch) -> RameResult<()>;
+    fn apply<'a>(&self, batch: &mut B::Batch<'a>) -> RameResult<()>
+    where
+        B::Source: 'a;
 }
 
 /// Ordered preprocessing operation list.

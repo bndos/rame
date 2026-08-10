@@ -38,7 +38,7 @@ mod tests {
             .add_op(Permute::nchw())
             .compile();
 
-        let output = pipeline.process_many(std::slice::from_ref(&image)).unwrap();
+        let output = pipeline.process_many(&[image]).unwrap();
 
         assert_eq!(output.tensor.shape(), &[1, 3, 2, 2]);
         assert_eq!(output.scale_factors.shape(), &[1, 2]);

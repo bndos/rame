@@ -1,5 +1,6 @@
 use ndarray::{Array2, Array3, Array4};
-use opencv::core::Mat;
+use opencv::boxed_ref::BoxedRef;
+use opencv::core::{Mat, Vec3b};
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
@@ -13,23 +14,32 @@ use crate::preprocess::vision::{VisionBatchOutput, VisionOp};
 pub struct OpenCvVisionBackend;
 
 #[doc(hidden)]
-pub struct OpenCvVisionState {
-    pub(super) image: Mat,
+pub struct OpenCvVisionState<'a> {
+    pub(super) image: OpenCvImage<'a>,
     pub(super) source_width: i32,
     pub(super) source_height: i32,
     pub(super) scale_factor: [f32; 2],
 }
 
 #[doc(hidden)]
-pub struct OpenCvVisionBatch {
-    pub(super) items: Vec<OpenCvVisionState>,
+pub struct OpenCvVisionBatch<'a> {
+    pub(super) items: Vec<OpenCvVisionState<'a>>,
     pub(super) normalized_images: Option<Vec<Array3<f32>>>,
     pub(super) tensor: Option<Array4<f32>>,
 }
 
+#[doc(hidden)]
+pub(super) enum OpenCvImage<'a> {
+    Borrowed(BoxedRef<'a, Mat>),
+    Owned(Mat),
+}
+
 impl PreprocessBackend for OpenCvVisionBackend {
     type Source = Image;
-    type Batch = OpenCvVisionBatch;
+    type Batch<'a>
+        = OpenCvVisionBatch<'a>
+    where
+        Self::Source: 'a;
     type Output = VisionBatchOutput;
     type Op = VisionOp;
 
@@ -37,17 +47,20 @@ impl PreprocessBackend for OpenCvVisionBackend {
         super::compile::compile(ops);
     }
 
-    fn batch(&self, images: &[Self::Source]) -> RameResult<Self::Batch> {
+    fn batch<'a>(&self, images: &'a [Self::Source]) -> RameResult<Self::Batch<'a>> {
         OpenCvVisionBatch::new(images)
     }
 
-    fn finish(&self, batch: Self::Batch) -> RameResult<Self::Output> {
+    fn finish(&self, batch: Self::Batch<'_>) -> RameResult<Self::Output> {
         batch.finish()
     }
 }
 
 impl PreprocessOp<OpenCvVisionBackend> for VisionOp {
-    fn apply(&self, batch: &mut OpenCvVisionBatch) -> RameResult<()> {
+    fn apply<'a>(&self, batch: &mut OpenCvVisionBatch<'a>) -> RameResult<()>
+    where
+        Image: 'a,
+    {
         match *self {
             Self::Resize(op) => op.apply_opencv(batch),
             Self::NormalizeImage(op) => op.apply_opencv(batch),
@@ -59,30 +72,38 @@ impl PreprocessOp<OpenCvVisionBackend> for VisionOp {
     }
 }
 
-impl OpenCvVisionState {
-    fn new(image: &Image) -> RameResult<Self> {
-        let source_size = image.size();
-        let source_height = source_size.height as i32;
-        let source_width = source_size.width as i32;
+impl OpenCvImage<'_> {
+    pub(super) fn size(&self) -> opencv::Result<opencv::core::Size> {
+        match self {
+            Self::Borrowed(image) => image.size(),
+            Self::Owned(image) => image.size(),
+        }
+    }
+}
 
-        let image = Mat::new_rows_cols_with_data(1, source_height * source_width * 3, image.data())
-            .map_err(PreprocessError::from)?
-            .reshape(3, source_height)
-            .map_err(PreprocessError::from)?
-            .try_clone()
-            .map_err(PreprocessError::from)?;
+impl<'a> OpenCvVisionState<'a> {
+    fn new(image: &'a Image) -> RameResult<Self> {
+        let source_size = image.size();
+
+        let image = Mat::new_rows_cols_with_bytes::<Vec3b>(
+            source_size.height as i32,
+            source_size.width as i32,
+            image.data(),
+        )
+        .map(OpenCvImage::Borrowed)
+        .map_err(PreprocessError::from)?;
 
         Ok(Self {
             image,
-            source_width,
-            source_height,
+            source_width: source_size.width as i32,
+            source_height: source_size.height as i32,
             scale_factor: [1.0, 1.0],
         })
     }
 }
 
-impl OpenCvVisionBatch {
-    pub(super) fn new(images: &[Image]) -> RameResult<Self> {
+impl<'a> OpenCvVisionBatch<'a> {
+    pub(super) fn new(images: &'a [Image]) -> RameResult<Self> {
         let items = images
             .iter()
             .map(OpenCvVisionState::new)
