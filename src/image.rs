@@ -14,7 +14,7 @@ impl Size {
 }
 
 /// Pixel storage format for an image.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PixelFormat {
     Rgb8,
 }
@@ -30,35 +30,21 @@ pub enum ImageError {
     },
 }
 
-/// In-memory image input.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Image {
+/// In-memory image input backed by caller-selected storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImageBuffer<D> {
     size: Size,
     pixel_format: PixelFormat,
-    data: Vec<u8>,
+    data: D,
 }
 
-impl Image {
-    pub fn from_rgb8(width: u32, height: u32, data: impl Into<Vec<u8>>) -> RameResult<Self> {
-        let data = data.into();
-        let expected_len = width as usize * height as usize * 3;
-        if data.len() != expected_len {
-            return Err(ImageError::InvalidRgbData {
-                width,
-                height,
-                expected_len,
-                actual_len: data.len(),
-            }
-            .into());
-        }
+/// Owned in-memory image input.
+pub type Image = ImageBuffer<Vec<u8>>;
 
-        Ok(Self {
-            size: Size::new(width, height),
-            pixel_format: PixelFormat::Rgb8,
-            data,
-        })
-    }
+/// Borrowed in-memory image input.
+pub type ImageView<'a> = ImageBuffer<&'a [u8]>;
 
+impl<D> ImageBuffer<D> {
     pub fn size(&self) -> Size {
         self.size
     }
@@ -67,7 +53,68 @@ impl Image {
         &self.pixel_format
     }
 
-    pub fn data(&self) -> &[u8] {
-        &self.data
+    pub fn into_data(self) -> D {
+        self.data
     }
+}
+
+impl<D> ImageBuffer<D>
+where
+    D: AsRef<[u8]>,
+{
+    pub fn data(&self) -> &[u8] {
+        self.data.as_ref()
+    }
+}
+
+impl Image {
+    pub fn from_rgb8(width: u32, height: u32, data: impl Into<Vec<u8>>) -> RameResult<Self> {
+        let data = data.into();
+        validate_rgb8(width, height, data.len())?;
+
+        Ok(Self {
+            size: Size::new(width, height),
+            pixel_format: PixelFormat::Rgb8,
+            data,
+        })
+    }
+
+    pub fn as_view(&self) -> ImageView<'_> {
+        ImageBuffer {
+            size: self.size,
+            pixel_format: self.pixel_format,
+            data: &self.data,
+        }
+    }
+}
+
+impl<'a> ImageView<'a> {
+    pub fn from_rgb8(width: u32, height: u32, data: &'a [u8]) -> RameResult<Self> {
+        validate_rgb8(width, height, data.len())?;
+
+        Ok(Self {
+            size: Size::new(width, height),
+            pixel_format: PixelFormat::Rgb8,
+            data,
+        })
+    }
+
+    pub fn to_owned_image(&self) -> RameResult<Image> {
+        Image::from_rgb8(self.size.width, self.size.height, self.data)
+    }
+}
+
+fn validate_rgb8(width: u32, height: u32, actual_len: usize) -> RameResult<()> {
+    let expected_len = width as usize * height as usize * 3;
+    if actual_len != expected_len {
+        return Err(ImageError::InvalidRgbData {
+            width,
+            height,
+            expected_len,
+            actual_len,
+        }
+        .into());
+    }
+
+    Ok(())
 }

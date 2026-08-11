@@ -17,10 +17,13 @@ pub struct ProcessedBatch<C = ()> {
 /// Converts a source input into backend-ready tensors.
 pub trait Processor {
     /// Raw input accepted by this processor.
-    type Source;
+    type Source<'a>;
 
     /// Metadata produced during preprocessing and needed during decoding.
     type Context;
 
-    fn process_many(&self, sources: &[Self::Source]) -> RameResult<ProcessedBatch<Self::Context>>;
+    fn process_many<'a>(
+        &self,
+        sources: &'a [Self::Source<'a>],
+    ) -> RameResult<ProcessedBatch<Self::Context>>;
 }

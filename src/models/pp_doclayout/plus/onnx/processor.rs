@@ -1,5 +1,5 @@
 use crate::RameResult;
-use crate::image::Image;
+use crate::image::ImageView;
 use crate::models::pp_doclayout::plus::onnx::{Inputs, Preprocess};
 use crate::preprocess::vision::VisionPipeline;
 use crate::runtime::{ProcessedBatch, Processor};
@@ -25,10 +25,13 @@ impl PpDocLayoutPlusOnnxProcessor {
 }
 
 impl Processor for PpDocLayoutPlusOnnxProcessor {
-    type Source = Image;
+    type Source<'a> = ImageView<'a>;
     type Context = ();
 
-    fn process_many(&self, images: &[Image]) -> RameResult<ProcessedBatch<Self::Context>> {
+    fn process_many<'a>(
+        &self,
+        images: &'a [Self::Source<'a>],
+    ) -> RameResult<ProcessedBatch<Self::Context>> {
         if images.is_empty() {
             return Ok(ProcessedBatch {
                 len: 0,
@@ -85,7 +88,8 @@ mod tests {
             },
         );
 
-        let processed = processor.process_many(&[image]).unwrap();
+        let image_view = image.as_view();
+        let processed = processor.process_many(&[image_view]).unwrap();
 
         assert_eq!(processed.len, 1);
         assert_eq!(processed.contexts.len(), 1);
@@ -124,7 +128,8 @@ mod tests {
             },
         );
 
-        let processed = processor.process_many(&images).unwrap();
+        let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
+        let processed = processor.process_many(&image_views).unwrap();
 
         assert_eq!(processed.len, 2);
         assert_eq!(processed.contexts.len(), 2);

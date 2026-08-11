@@ -5,23 +5,25 @@ use crate::RameResult;
 /// Backend that owns preprocessing state creation and finalization.
 pub trait PreprocessBackend: Sized {
     /// Raw input consumed by this preprocessing state.
-    type Source;
+    type Source<'a>;
     /// Mutable batch threaded through every preprocessing op.
-    type Batch<'a>
-    where
-        Self::Source: 'a;
+    type Batch<'a>;
     /// Output produced after all preprocessing ops have run over a batch.
     type Output;
     /// Typed operation IR compiled by this backend.
     type Op: PreprocessOp<Self>;
 
-    fn batch<'a>(&self, sources: &'a [Self::Source]) -> RameResult<Self::Batch<'a>>;
+    fn batch<'a>(&self, sources: &'a [Self::Source<'a>]) -> RameResult<Self::Batch<'a>>;
 
     fn finish(&self, batch: Self::Batch<'_>) -> RameResult<Self::Output>;
 
     fn compile(&self, ops: &mut Vec<Self::Op>);
 
-    fn process_many(&self, sources: &[Self::Source], ops: &[Self::Op]) -> RameResult<Self::Output> {
+    fn process_many<'a>(
+        &self,
+        sources: &'a [Self::Source<'a>],
+        ops: &[Self::Op],
+    ) -> RameResult<Self::Output> {
         let mut batch = self.batch(sources)?;
 
         for op in ops {
@@ -37,9 +39,7 @@ pub trait PreprocessOp<B>: fmt::Debug + Send + Sync
 where
     B: PreprocessBackend,
 {
-    fn apply<'a>(&self, batch: &mut B::Batch<'a>) -> RameResult<()>
-    where
-        B::Source: 'a;
+    fn apply<'a>(&self, batch: &mut B::Batch<'a>) -> RameResult<()>;
 }
 
 /// Ordered preprocessing operation list.
@@ -77,7 +77,7 @@ where
         self
     }
 
-    pub fn process_many(&self, sources: &[B::Source]) -> RameResult<B::Output> {
+    pub fn process_many<'a>(&self, sources: &'a [B::Source<'a>]) -> RameResult<B::Output> {
         self.backend.process_many(sources, &self.ops)
     }
 }

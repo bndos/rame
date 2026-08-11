@@ -30,11 +30,11 @@ where
     S: InferSession,
     D: Decoder<Context = P::Context>,
 {
-    pub fn run_many(&mut self, sources: &[P::Source]) -> RameResult<Vec<D::Output>> {
+    pub fn run_many<'a>(&mut self, sources: &'a [P::Source<'a>]) -> RameResult<Vec<D::Output>> {
         crate::instrumentation::time_stage!("rame_pipeline_duration", self.run_many_inner(sources))
     }
 
-    fn run_many_inner(&mut self, sources: &[P::Source]) -> RameResult<Vec<D::Output>> {
+    fn run_many_inner<'a>(&mut self, sources: &'a [P::Source<'a>]) -> RameResult<Vec<D::Output>> {
         if sources.is_empty() {
             return Ok(Vec::new());
         }
@@ -96,10 +96,13 @@ mod tests {
     struct EchoProcessor;
 
     impl Processor for EchoProcessor {
-        type Source = i32;
+        type Source<'a> = i32;
         type Context = i32;
 
-        fn process_many(&self, sources: &[Self::Source]) -> RameResult<ProcessedBatch<i32>> {
+        fn process_many<'a>(
+            &self,
+            sources: &'a [Self::Source<'a>],
+        ) -> RameResult<ProcessedBatch<i32>> {
             Ok(ProcessedBatch {
                 len: sources.len(),
                 inputs: TensorMap::new(),

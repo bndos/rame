@@ -4,7 +4,7 @@ use opencv::core::{Mat, Vec3b};
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
-use crate::image::Image;
+use crate::image::ImageView;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::opencv::normalize_permute::NormalizeAndPermute;
@@ -35,11 +35,8 @@ pub(super) enum OpenCvImage<'a> {
 }
 
 impl PreprocessBackend for OpenCvVisionBackend {
-    type Source = Image;
-    type Batch<'a>
-        = OpenCvVisionBatch<'a>
-    where
-        Self::Source: 'a;
+    type Source<'a> = ImageView<'a>;
+    type Batch<'a> = OpenCvVisionBatch<'a>;
     type Output = VisionBatchOutput;
     type Op = VisionOp;
 
@@ -47,7 +44,7 @@ impl PreprocessBackend for OpenCvVisionBackend {
         super::compile::compile(ops);
     }
 
-    fn batch<'a>(&self, images: &'a [Self::Source]) -> RameResult<Self::Batch<'a>> {
+    fn batch<'a>(&self, images: &'a [Self::Source<'a>]) -> RameResult<Self::Batch<'a>> {
         OpenCvVisionBatch::new(images)
     }
 
@@ -57,10 +54,7 @@ impl PreprocessBackend for OpenCvVisionBackend {
 }
 
 impl PreprocessOp<OpenCvVisionBackend> for VisionOp {
-    fn apply<'a>(&self, batch: &mut OpenCvVisionBatch<'a>) -> RameResult<()>
-    where
-        Image: 'a,
-    {
+    fn apply<'a>(&self, batch: &mut OpenCvVisionBatch<'a>) -> RameResult<()> {
         match *self {
             Self::Resize(op) => op.apply_opencv(batch),
             Self::NormalizeImage(op) => op.apply_opencv(batch),
@@ -82,7 +76,7 @@ impl OpenCvImage<'_> {
 }
 
 impl<'a> OpenCvVisionState<'a> {
-    fn new(image: &'a Image) -> RameResult<Self> {
+    fn new(image: &'a ImageView<'a>) -> RameResult<Self> {
         let source_size = image.size();
 
         let image = Mat::new_rows_cols_with_bytes::<Vec3b>(
@@ -103,7 +97,7 @@ impl<'a> OpenCvVisionState<'a> {
 }
 
 impl<'a> OpenCvVisionBatch<'a> {
-    pub(super) fn new(images: &'a [Image]) -> RameResult<Self> {
+    pub(super) fn new(images: &'a [ImageView<'a>]) -> RameResult<Self> {
         let items = images
             .iter()
             .map(OpenCvVisionState::new)

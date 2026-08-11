@@ -2061,7 +2061,6 @@ dependencies = [
  "pyo3",
  "pyo3-build-config",
  "rame",
- "rayon",
 ]
 
 [[package]]

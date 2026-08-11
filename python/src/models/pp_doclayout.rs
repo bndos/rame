@@ -6,7 +6,7 @@ use rame::sources::HuggingFace;
 
 use crate::engine::PyOrtSessionConfig;
 use crate::error::into_py_err;
-use crate::image::array_to_image;
+use crate::image::array_to_image_view;
 use crate::layout::PyLayoutResult;
 
 #[pyclass(name = "PpDocLayoutPlusOnnx")]
@@ -46,25 +46,27 @@ impl PyPpDocLayoutPlusOnnx {
 
     fn detect_layout(
         &mut self,
-        py: Python<'_>,
+        _py: Python<'_>,
         image: PyReadonlyArray3<'_, u8>,
     ) -> PyResult<PyLayoutResult> {
-        let img = array_to_image(image)?;
-        py.detach(|| self.inner.detect_layout(&img))
+        let img = array_to_image_view(&image)?;
+        self.inner
+            .detect_layout_view(img)
             .map(PyLayoutResult::from)
             .map_err(into_py_err)
     }
 
     fn detect_layout_many(
         &mut self,
-        py: Python<'_>,
+        _py: Python<'_>,
         images: Vec<PyReadonlyArray3<'_, u8>>,
     ) -> PyResult<Vec<PyLayoutResult>> {
         let imgs: Vec<_> = images
-            .into_iter()
-            .map(array_to_image)
+            .iter()
+            .map(array_to_image_view)
             .collect::<PyResult<_>>()?;
-        py.detach(|| self.inner.detect_layout_many(&imgs))
+        self.inner
+            .detect_layout_many_views(&imgs)
             .map(|rs| rs.into_iter().map(PyLayoutResult::from).collect())
             .map_err(into_py_err)
     }

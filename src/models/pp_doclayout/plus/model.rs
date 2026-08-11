@@ -1,5 +1,5 @@
 use crate::RameResult;
-use crate::image::Image;
+use crate::image::ImageView;
 use crate::layout::{LayoutModel, LayoutResult};
 use crate::runtime::{Decoder, InferencePipeline, ModelArchitecture, ModelBuilder, Processor};
 use crate::session::InferSession;
@@ -20,11 +20,14 @@ impl ModelArchitecture for PpDocLayoutPlus {
 
 impl<P, S, D> LayoutModel for InferencePipeline<PpDocLayoutPlus, P, S, D>
 where
-    P: Processor<Source = Image>,
+    P: for<'a> Processor<Source<'a> = ImageView<'a>>,
     S: InferSession,
     D: Decoder<Output = LayoutResult, Context = P::Context>,
 {
-    fn detect_layout_many(&mut self, images: &[Image]) -> RameResult<Vec<LayoutResult>> {
+    fn detect_layout_many_views<'a>(
+        &mut self,
+        images: &'a [ImageView<'a>],
+    ) -> RameResult<Vec<LayoutResult>> {
         self.run_many(images)
     }
 }

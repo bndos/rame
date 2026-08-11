@@ -143,14 +143,15 @@ mod tests {
             Image::from_rgb8(2, 1, vec![0, 255, 128, 255, 64, 32]).unwrap(),
         ];
 
+        let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
         let normalize = NormalizeImage::new(0.5, [0.1, 0.2, 0.3], [1.0, 2.0, 4.0]);
         let permute = Permute::nchw();
-        let mut unfused = OpenCvVisionBatch::new(&images).unwrap();
+        let mut unfused = OpenCvVisionBatch::new(&image_views).unwrap();
         normalize.apply_opencv(&mut unfused).unwrap();
         permute.apply_opencv(&mut unfused).unwrap();
         let unfused = unfused.finish().unwrap();
 
-        let mut fused = OpenCvVisionBatch::new(&images).unwrap();
+        let mut fused = OpenCvVisionBatch::new(&image_views).unwrap();
         NormalizeAndPermute::new(normalize, permute)
             .apply_opencv(&mut fused)
             .unwrap();
