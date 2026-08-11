@@ -1,8 +1,3 @@
-#[cfg(not(feature = "opencv"))]
-compile_error!(
-    "vision preprocessing currently requires the `opencv` feature; native preprocessing is not implemented yet"
-);
-
 #[cfg(feature = "opencv")]
 mod opencv;
 mod ops;
