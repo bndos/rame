@@ -48,12 +48,37 @@ let mut model = PpDocLayoutPlus::builder()
 let result = model.detect_layout(&image)?;
 ```
 
+## Benchmark
+
+**Spec:** RTX 4090, batch size 8.
+
+**Dataset:** `opendatalab/OmniDocBench`.
+
+**PP-DocLayout Plus throughput on GPU.**
+
+![](docs/assets/benchmarks/pp_doclayout_plus_gpu_throughput.png)
+
+| Runner      | Backend                   | Python input |        Throughput |
+|-------------|---------------------------|--------------|------------------:|
+| PaddleX     | CUDA                      |              |  66.010 samples/s |
+| PaddleX HPI | ONNXRuntime CUDA          |              |  46.232 samples/s |
+| PaddleX     | ONNXRuntime CUDA          |              |  58.977 samples/s |
+| rame        | ONNXRuntime CUDA          | copy         |  65.126 samples/s |
+| rame        | ONNXRuntime CUDA          | view         |  80.944 samples/s |
+| PaddleX HPI | TensorRT fp16             |              |  61.012 samples/s |
+| PaddleX     | ONNXRuntime TensorRT fp16 |              |  78.579 samples/s |
+| rame        | TensorRT fp16             | copy         |  93.760 samples/s |
+| rame        | TensorRT fp16             | view         | 135.631 samples/s |
+
+`PaddleX HPI` uses PaddleX's UltraInfer-based high-performance inference plugin.
+PaddleX [notes](https://paddlepaddle.github.io/PaddleX/3.5/en/pipeline_deploy/high_performance_inference.html#3-frequently-asked-questions) that HPI may not accelerate every model, and here it doesn't. `copy` and
+`view` are rame's Python input modes: `view` avoids copying the input image but keeps the GIL held during inference.
 
 ## Supported Models
 
-| Model | Task | Artifact |
-| --- | --- | --- |
-| PaddleOCR PP-DocLayout Plus | Layout detection | ONNX |
+| Model                       | Task             | Artifact |
+|-----------------------------|------------------|----------|
+| PaddleOCR PP-DocLayout Plus | Layout detection | ONNX     |
 
 More model integrations will be added as their preprocessing and decoding
 contracts are implemented.
