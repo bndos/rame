@@ -1,6 +1,7 @@
 use ndarray::Array4;
 use opencv::core::{self, Mat, Size, ToInputArray, Vector};
 use opencv::prelude::MatTraitConst;
+use rayon::prelude::*;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
@@ -43,18 +44,13 @@ impl NormalizeAndPermute {
         // The number of pixels in a single channel
         let plane = height * width;
 
-        for (index, item) in batch.items.iter_mut().enumerate() {
-            ensure_size(&item.image, size)?;
-            let start = index * 3 * plane;
-            let end = start + 3 * plane;
-            self.normalize_image_into_nchw(
-                &item.image,
-                height,
-                width,
-                plane,
-                &mut output[start..end],
-            )?;
-        }
+        output
+            .par_chunks_mut(3 * plane)
+            .zip(batch.items.par_iter())
+            .try_for_each(|(output, item)| {
+                ensure_size(&item.image, size)?;
+                self.normalize_image_into_nchw(&item.image, height, width, plane, output)
+            })?;
 
         batch.tensor = Some(tensor);
 

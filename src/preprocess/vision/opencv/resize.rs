@@ -1,5 +1,6 @@
 use opencv::core::{Mat, Size, ToInputArray};
 use opencv::imgproc;
+use rayon::prelude::*;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
@@ -8,12 +9,11 @@ use crate::preprocess::vision::{Interpolation, Resize, ResizeMode};
 
 impl Resize {
     pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
-        for item in &mut batch.items {
+        batch.items.par_iter_mut().try_for_each(|item| {
             item.image = OpenCvImage::Owned(self.resize_mat(&item.image)?);
             item.scale_factor = self.scale_factor(item);
-        }
-
-        Ok(())
+            Ok(())
+        })
     }
 }
 
