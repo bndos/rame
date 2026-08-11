@@ -40,17 +40,19 @@ class Benchmark:
 
         process.start()
         child_connection.close()
-        process.join()
 
-        if not parent_connection.poll():
+        try:
+            message = parent_connection.recv()
+        except EOFError:
+            process.join()
             exitcode = process.exitcode
             process.close()
             raise RuntimeError(
                 f"isolated benchmark run {name!r} exited without a result "
                 f"(exit code {exitcode})"
-            )
+            ) from None
 
-        message = parent_connection.recv()
+        process.join()
         process.close()
         match message:
             case ("ok", result):
