@@ -6,8 +6,9 @@ use rame::sources::HuggingFace;
 
 use crate::engine::PyOrtSessionConfig;
 use crate::error::into_py_err;
-use crate::image::array_to_image_view;
+use crate::image::BorrowedImageArray;
 use crate::layout::PyLayoutResult;
+use rayon::prelude::*;
 
 #[pyclass(name = "PpDocLayoutPlusOnnx")]
 pub(crate) struct PyPpDocLayoutPlusOnnx {
@@ -44,30 +45,56 @@ impl PyPpDocLayoutPlusOnnx {
         })
     }
 
+    #[pyo3(signature = (image, *, copy=true))]
     fn detect_layout(
         &mut self,
-        _py: Python<'_>,
+        py: Python<'_>,
         image: PyReadonlyArray3<'_, u8>,
+        copy: bool,
     ) -> PyResult<PyLayoutResult> {
-        let img = array_to_image_view(&image)?;
-        self.inner
-            .detect_layout_view(img)
-            .map(PyLayoutResult::from)
-            .map_err(into_py_err)
+        let image = BorrowedImageArray::new(&image)?;
+        if copy {
+            let image = image.to_owned_image()?;
+            py.detach(|| self.inner.detect_layout(&image))
+                .map(PyLayoutResult::from)
+                .map_err(into_py_err)
+        } else {
+            let image = image.as_image_view()?;
+            self.inner
+                .detect_layout_view(image)
+                .map(PyLayoutResult::from)
+                .map_err(into_py_err)
+        }
     }
 
+    #[pyo3(signature = (images, *, copy=true))]
     fn detect_layout_many(
         &mut self,
-        _py: Python<'_>,
+        py: Python<'_>,
         images: Vec<PyReadonlyArray3<'_, u8>>,
+        copy: bool,
     ) -> PyResult<Vec<PyLayoutResult>> {
-        let imgs: Vec<_> = images
+        let image_arrays: Vec<_> = images
             .iter()
-            .map(array_to_image_view)
+            .map(BorrowedImageArray::new)
             .collect::<PyResult<_>>()?;
-        self.inner
-            .detect_layout_many_views(&imgs)
-            .map(|rs| rs.into_iter().map(PyLayoutResult::from).collect())
-            .map_err(into_py_err)
+        if copy {
+            let images: Vec<_> = image_arrays
+                .par_iter()
+                .map(|image| image.to_owned_image())
+                .collect::<PyResult<_>>()?;
+            py.detach(|| self.inner.detect_layout_many(&images))
+                .map(|rs| rs.into_iter().map(PyLayoutResult::from).collect())
+                .map_err(into_py_err)
+        } else {
+            let images: Vec<_> = image_arrays
+                .iter()
+                .map(|image| image.as_image_view())
+                .collect::<PyResult<_>>()?;
+            self.inner
+                .detect_layout_many_views(&images)
+                .map(|rs| rs.into_iter().map(PyLayoutResult::from).collect())
+                .map_err(into_py_err)
+        }
     }
 }

@@ -25,8 +25,10 @@ class RameLayoutDetectionModel:
         source: str,
         engine: EngineName,
         engine_config: dict[str, Any] | None = None,
+        copy: bool = True,
     ) -> None:
         self._benchmark_model_meta = benchmark_model_meta
+        self._copy = copy
         self._model = load_layout_model(
             source,
             model="pp-doclayout-plus",
@@ -42,7 +44,7 @@ class RameLayoutDetectionModel:
         self, images: Sequence[ImageSample]
     ) -> Sequence[LayoutPrediction]:
         results = self._model.detect_layout_many(
-            [sample.as_ndarray() for sample in images]
+            [sample.as_ndarray() for sample in images], copy=self._copy
         )
         return [LayoutPrediction(regions=len(result.regions)) for result in results]
 

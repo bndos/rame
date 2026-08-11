@@ -14,9 +14,11 @@ LayoutModelName: TypeAlias = Literal["pp-doclayout-plus"]
 class LayoutModel(Protocol):
     """Interface implemented by all rame layout detection models."""
 
-    def detect_layout(self, image: NDArray[np.uint8]) -> LayoutResult: ...
+    def detect_layout(
+        self, image: NDArray[np.uint8], *, copy: bool = True
+    ) -> LayoutResult: ...
     def detect_layout_many(
-        self, images: list[NDArray[np.uint8]]
+        self, images: list[NDArray[np.uint8]], *, copy: bool = True
     ) -> list[LayoutResult]: ...
 
 
