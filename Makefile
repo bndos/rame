@@ -7,11 +7,12 @@ YAML_FILES := $(shell git ls-files --cached --others --exclude-standard '*.yaml'
 help:
 	@printf '%s\n' \
 		'Targets:' \
-		'  make fmt       Format Rust, TOML, YAML, and benchmark Python files' \
-		'  make check     Run format checks, Clippy, and tests' \
-		'  make test      Run tests with FEATURES' \
-		'  make hooks     Install Lefthook and sync Git hooks' \
-		'  make bench-env Sync benchmark environment with BENCH_EXTRAS' \
+		'  make fmt                         Format Rust, TOML, YAML, and benchmark Python files' \
+		'  make check                       Run format checks, Clippy, and tests' \
+		'  make feature-check               Check supported Rust feature combinations' \
+		'  make test                        Run tests with FEATURES' \
+		'  make hooks                       Install Lefthook and sync Git hooks' \
+		'  make bench-env                   Sync benchmark environment with BENCH_EXTRAS' \
 		'  make bench-run-config CONFIG=... Run benchmark config'
 
 .PHONY: fmt
@@ -33,6 +34,17 @@ check:
 	cargo clippy -p rame-python --all-targets
 	cargo test $(FEATURES)
 	cargo test -p rame-python
+
+.PHONY: ci
+ci: check feature-check
+
+.PHONY: feature-check
+feature-check:
+	cargo check --no-default-features
+	cargo check --features metrics
+	cargo check --workspace --all-features
+	cargo check -p rame-python --features cuda
+	cargo check -p rame-python --features tensorrt
 
 .PHONY: test
 test:

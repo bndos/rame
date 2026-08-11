@@ -40,4 +40,4 @@ jobs:
           command -v yamlfmt >/dev/null || go install github.com/google/yamlfmt/cmd/yamlfmt@"$YAMLFMT_VERSION"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Check
-        run: make check FEATURES="$RAME_CI_FEATURES"
+        run: make ci FEATURES="$RAME_CI_FEATURES"
