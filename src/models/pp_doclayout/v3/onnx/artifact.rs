@@ -120,9 +120,14 @@ impl ModelArtifact for Artifact {
     fn into_parts(
         self,
     ) -> ArtifactParts<OrtSessionConfig, PpDocLayoutV3OnnxProcessor, PpDocLayoutV3Decoder> {
+        let session_config = self
+            .session_config
+            .output(self.outputs.boxes.clone())
+            .output(self.outputs.boxes_num.clone());
+
         ArtifactParts {
             model_file: self.model_file,
-            session_config: self.session_config,
+            session_config,
             processor: PpDocLayoutV3OnnxProcessor::new(self.inputs, self.preprocess),
             decoder: PpDocLayoutV3Decoder::new(self.outputs.boxes, self.outputs.boxes_num),
         }

@@ -29,6 +29,7 @@ pub struct OrtSessionConfig {
     pub(super) deterministic_compute: Option<bool>,
     pub(super) config_entries: Vec<(String, String)>,
     pub(super) execution_providers: Vec<ExecutionProviderDispatch>,
+    pub(super) output_names: Vec<String>,
 }
 
 impl OrtSessionConfig {
@@ -64,6 +65,11 @@ impl OrtSessionConfig {
 
     pub fn config_entry(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.config_entries.push((key.into(), value.into()));
+        self
+    }
+
+    pub fn output(mut self, name: impl Into<String>) -> Self {
+        self.output_names.push(name.into());
         self
     }
 
@@ -137,6 +143,7 @@ impl fmt::Debug for OrtSessionConfig {
             .field("deterministic_compute", &self.deterministic_compute)
             .field("config_entries", &self.config_entries)
             .field("execution_providers", &self.execution_providers.len())
+            .field("output_names", &self.output_names)
             .finish()
     }
 }
