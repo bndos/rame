@@ -1,4 +1,4 @@
-use ndarray::{Array2, Array3, Array4};
+use ndarray::{Array2, Array4};
 use opencv::boxed_ref::BoxedRef;
 use opencv::core::{Mat, Vec3b};
 use opencv::prelude::MatTraitConst;
@@ -7,7 +7,6 @@ use crate::RameResult;
 use crate::image::ImageView;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
-use crate::preprocess::vision::opencv::normalize_permute::NormalizeAndPermute;
 use crate::preprocess::vision::{VisionBatchOutput, VisionOp};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -24,7 +23,6 @@ pub struct OpenCvVisionState<'a> {
 #[doc(hidden)]
 pub struct OpenCvVisionBatch<'a> {
     pub(super) items: Vec<OpenCvVisionState<'a>>,
-    pub(super) normalized_images: Option<Vec<Array3<f32>>>,
     pub(super) tensor: Option<Array4<f32>>,
 }
 
@@ -57,11 +55,7 @@ impl PreprocessOp<OpenCvVisionBackend> for VisionOp {
     fn apply<'a>(&self, batch: &mut OpenCvVisionBatch<'a>) -> RameResult<()> {
         match *self {
             Self::Resize(op) => op.apply_opencv(batch),
-            Self::NormalizeImage(op) => op.apply_opencv(batch),
-            Self::Permute(op) => op.apply_opencv(batch),
-            Self::NormalizeAndPermute { normalize, permute } => {
-                NormalizeAndPermute::new(normalize, permute).apply_opencv(batch)
-            }
+            Self::ToTensor(op) => op.apply_opencv(batch),
         }
     }
 }
@@ -105,7 +99,6 @@ impl<'a> OpenCvVisionBatch<'a> {
 
         Ok(Self {
             items,
-            normalized_images: None,
             tensor: None,
         })
     }

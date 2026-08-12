@@ -6,29 +6,17 @@ use rayon::prelude::*;
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch};
-use crate::preprocess::vision::{NormalizeImage, Permute, TensorLayout};
+use crate::preprocess::vision::{NormalizeImage, TensorLayout, ToTensor};
 
-#[derive(Debug, Clone, Copy)]
-pub(super) struct NormalizeAndPermute {
-    normalize: NormalizeImage,
-    permute: Permute,
-}
-
-impl NormalizeAndPermute {
-    pub(super) fn new(normalize: NormalizeImage, permute: Permute) -> Self {
-        Self { normalize, permute }
-    }
-}
-
-impl NormalizeAndPermute {
+impl ToTensor {
     pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
-        match self.permute.layout {
+        match self.layout {
             TensorLayout::Nchw => self.apply_nchw(batch),
         }
     }
 }
 
-impl NormalizeAndPermute {
+impl ToTensor {
     fn apply_nchw(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
         if batch.items.is_empty() {
             return Ok(());
@@ -49,7 +37,7 @@ impl NormalizeAndPermute {
             .zip(batch.items.par_iter())
             .try_for_each(|(output, item)| {
                 ensure_size(&item.image, size)?;
-                self.normalize_image_into_nchw(&item.image, height, width, plane, output)
+                self.image_into_nchw(&item.image, height, width, plane, output)
             })?;
 
         batch.tensor = Some(tensor);
@@ -58,8 +46,8 @@ impl NormalizeAndPermute {
     }
 }
 
-impl NormalizeAndPermute {
-    fn normalize_image_into_nchw(
+impl ToTensor {
+    fn image_into_nchw(
         &self,
         image: &OpenCvImage<'_>,
         height: usize,
@@ -68,16 +56,12 @@ impl NormalizeAndPermute {
         output: &mut [f32],
     ) -> RameResult<()> {
         match image {
-            OpenCvImage::Borrowed(image) => {
-                self.normalize_mat_into_nchw(image, height, width, plane, output)
-            }
-            OpenCvImage::Owned(image) => {
-                self.normalize_mat_into_nchw(image, height, width, plane, output)
-            }
+            OpenCvImage::Borrowed(image) => self.mat_into_nchw(image, height, width, plane, output),
+            OpenCvImage::Owned(image) => self.mat_into_nchw(image, height, width, plane, output),
         }
     }
 
-    fn normalize_mat_into_nchw(
+    fn mat_into_nchw(
         &self,
         image: &impl ToInputArray,
         height: usize,
@@ -86,7 +70,7 @@ impl NormalizeAndPermute {
         output: &mut [f32],
     ) -> RameResult<()> {
         let mut channels = Vector::<Mat>::new();
-        let coefficients = self.normalize.coefficients();
+        let coefficients = NormalizationCoefficients::from(self.normalize);
         core::split(image, &mut channels).map_err(PreprocessError::from)?;
 
         for channel in 0..3 {
@@ -105,13 +89,43 @@ impl NormalizeAndPermute {
                 .convert_to(
                     &mut target,
                     core::CV_32FC1,
-                    coefficients.scale[channel] as f64,
-                    coefficients.bias[channel] as f64,
+                    coefficients.scale[channel],
+                    coefficients.bias[channel],
                 )
                 .map_err(PreprocessError::from)?;
         }
 
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct NormalizationCoefficients {
+    scale: [f64; 3],
+    bias: [f64; 3],
+}
+
+impl From<Option<NormalizeImage>> for NormalizationCoefficients {
+    fn from(normalize: Option<NormalizeImage>) -> Self {
+        let Some(normalize) = normalize else {
+            return Self {
+                scale: [1.0, 1.0, 1.0],
+                bias: [0.0, 0.0, 0.0],
+            };
+        };
+
+        Self {
+            scale: [
+                (normalize.scale / normalize.std[0]) as f64,
+                (normalize.scale / normalize.std[1]) as f64,
+                (normalize.scale / normalize.std[2]) as f64,
+            ],
+            bias: [
+                (-normalize.mean[0] / normalize.std[0]) as f64,
+                (-normalize.mean[1] / normalize.std[1]) as f64,
+                (-normalize.mean[2] / normalize.std[2]) as f64,
+            ],
+        }
     }
 }
 
@@ -132,40 +146,68 @@ fn ensure_size(image: &OpenCvImage<'_>, expected: Size) -> RameResult<()> {
 #[cfg(test)]
 mod tests {
     use crate::image::Image;
-    use crate::preprocess::vision::opencv::normalize_permute::NormalizeAndPermute;
     use crate::preprocess::vision::opencv::state::OpenCvVisionBatch;
-    use crate::preprocess::vision::{NormalizeImage, Permute};
+    use crate::preprocess::vision::{NormalizeImage, ToTensor};
 
     #[test]
-    fn matches_separate_normalize_and_permute_ops() {
-        let images = vec![
+    fn converts_images_to_nchw_tensor() {
+        let images = [Image::from_rgb8(2, 1, vec![255, 0, 64, 32, 128, 255]).unwrap()];
+        let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
+        let mut batch = OpenCvVisionBatch::new(&image_views).unwrap();
+
+        ToTensor::nchw().apply_opencv(&mut batch).unwrap();
+        let output = batch.finish().unwrap();
+
+        assert_eq!(output.tensor.shape(), &[1, 3, 1, 2]);
+        assert_eq!(output.tensor[[0, 0, 0, 0]], 255.0);
+        assert_eq!(output.tensor[[0, 1, 0, 0]], 0.0);
+        assert_eq!(output.tensor[[0, 2, 0, 0]], 64.0);
+        assert_eq!(output.tensor[[0, 0, 0, 1]], 32.0);
+        assert_eq!(output.tensor[[0, 1, 0, 1]], 128.0);
+        assert_eq!(output.tensor[[0, 2, 0, 1]], 255.0);
+    }
+
+    #[test]
+    fn applies_normalization_while_converting_to_nchw_tensor() {
+        let images = [
             Image::from_rgb8(2, 1, vec![255, 0, 64, 32, 128, 255]).unwrap(),
             Image::from_rgb8(2, 1, vec![0, 255, 128, 255, 64, 32]).unwrap(),
         ];
 
         let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
         let normalize = NormalizeImage::new(0.5, [0.1, 0.2, 0.3], [1.0, 2.0, 4.0]);
-        let permute = Permute::nchw();
-        let mut unfused = OpenCvVisionBatch::new(&image_views).unwrap();
-        normalize.apply_opencv(&mut unfused).unwrap();
-        permute.apply_opencv(&mut unfused).unwrap();
-        let unfused = unfused.finish().unwrap();
+        let mut batch = OpenCvVisionBatch::new(&image_views).unwrap();
 
-        let mut fused = OpenCvVisionBatch::new(&image_views).unwrap();
-        NormalizeAndPermute::new(normalize, permute)
-            .apply_opencv(&mut fused)
+        ToTensor::nchw()
+            .normalize(normalize)
+            .apply_opencv(&mut batch)
             .unwrap();
-        let fused = fused.finish().unwrap();
+        let output = batch.finish().unwrap();
 
-        assert_eq!(fused.tensor.shape(), unfused.tensor.shape());
-        assert_eq!(fused.image_shapes, unfused.image_shapes);
-        assert_eq!(fused.scale_factors, unfused.scale_factors);
+        let expected = ndarray::Array4::from_shape_vec(
+            (2, 3, 1, 2),
+            vec![
+                255.0 * 0.5 - 0.1,
+                32.0 * 0.5 - 0.1,
+                (0.0 * 0.5 - 0.2) / 2.0,
+                (128.0 * 0.5 - 0.2) / 2.0,
+                (64.0 * 0.5 - 0.3) / 4.0,
+                (255.0 * 0.5 - 0.3) / 4.0,
+                0.0 * 0.5 - 0.1,
+                255.0 * 0.5 - 0.1,
+                (255.0 * 0.5 - 0.2) / 2.0,
+                (64.0 * 0.5 - 0.2) / 2.0,
+                (128.0 * 0.5 - 0.3) / 4.0,
+                (32.0 * 0.5 - 0.3) / 4.0,
+            ],
+        )
+        .unwrap();
 
-        assert_tensor_close(&fused.tensor, &unfused.tensor);
-    }
+        assert_eq!(output.tensor.shape(), expected.shape());
+        assert_eq!(output.image_shapes.shape(), &[2, 2]);
+        assert_eq!(output.scale_factors.shape(), &[2, 2]);
 
-    fn assert_tensor_close(left: &ndarray::Array4<f32>, right: &ndarray::Array4<f32>) {
-        for (index, (left, right)) in left.iter().zip(right.iter()).enumerate() {
+        for (index, (left, right)) in output.tensor.iter().zip(expected.iter()).enumerate() {
             let diff = (left - right).abs();
             assert!(
                 diff < 1e-5,

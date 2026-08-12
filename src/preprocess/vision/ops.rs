@@ -83,19 +83,28 @@ impl NormalizeImage {
     }
 }
 
-/// Tensor layout conversion operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Permute {
+/// Tensor conversion operation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ToTensor {
     pub layout: TensorLayout,
+    pub normalize: Option<NormalizeImage>,
 }
 
-impl Permute {
+impl ToTensor {
     pub fn new(layout: TensorLayout) -> Self {
-        Self { layout }
+        Self {
+            layout,
+            normalize: None,
+        }
     }
 
     pub fn nchw() -> Self {
         Self::new(TensorLayout::Nchw)
+    }
+
+    pub fn normalize(mut self, normalize: NormalizeImage) -> Self {
+        self.normalize = Some(normalize);
+        self
     }
 }
 
@@ -103,13 +112,7 @@ impl Permute {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum VisionOp {
     Resize(Resize),
-    NormalizeImage(NormalizeImage),
-    Permute(Permute),
-    #[doc(hidden)]
-    NormalizeAndPermute {
-        normalize: NormalizeImage,
-        permute: Permute,
-    },
+    ToTensor(ToTensor),
 }
 
 impl From<Resize> for VisionOp {
@@ -118,14 +121,8 @@ impl From<Resize> for VisionOp {
     }
 }
 
-impl From<NormalizeImage> for VisionOp {
-    fn from(op: NormalizeImage) -> Self {
-        Self::NormalizeImage(op)
-    }
-}
-
-impl From<Permute> for VisionOp {
-    fn from(op: Permute) -> Self {
-        Self::Permute(op)
+impl From<ToTensor> for VisionOp {
+    fn from(op: ToTensor) -> Self {
+        Self::ToTensor(op)
     }
 }

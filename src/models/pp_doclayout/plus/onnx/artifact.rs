@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::models::pp_doclayout::plus::decoder::PpDocLayoutPlusDecoder;
 use crate::models::pp_doclayout::plus::model::PpDocLayoutPlus;
 use crate::models::pp_doclayout::plus::onnx::processor::PpDocLayoutPlusOnnxProcessor;
-use crate::preprocess::vision::{Interpolation, NormalizeImage, Permute, Resize};
+use crate::preprocess::vision::{Interpolation, NormalizeImage, Resize, ToTensor};
 use crate::runtime::{ArtifactParts, ModelArtifact};
 use crate::session::ort::OrtBackend;
 use crate::session::ort::OrtSessionConfig;
@@ -11,8 +11,8 @@ use crate::session::ort::OrtSessionConfig;
 /// PaddleX PP-DocLayout Plus ONNX artifact configuration.
 ///
 /// The preprocessing recipe follows PaddleX RT-DETR metadata for
-/// `PP-DocLayout_plus-L`: resize to 800x800, scale-only `NormalizeImage`, and
-/// `Permute`.
+/// `PP-DocLayout_plus-L`: resize to 800x800 and convert to NCHW f32 tensor
+/// with scale-only normalization.
 /// Source: <https://github.com/PaddlePaddle/PaddleX/blob/develop/paddlex/modules/base/utils/pdparams2safetensors/inference_meta.py#L150-L159>
 #[derive(Debug, Clone)]
 pub struct Artifact {
@@ -97,16 +97,14 @@ impl Default for Outputs {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Preprocess {
     pub resize: Resize,
-    pub normalize: NormalizeImage,
-    pub permute: Permute,
+    pub tensor: ToTensor,
 }
 
 impl Default for Preprocess {
     fn default() -> Self {
         Self {
             resize: Resize::fixed_square(800, Interpolation::Cubic),
-            normalize: NormalizeImage::scale(NormalizeImage::INV_255),
-            permute: Permute::nchw(),
+            tensor: ToTensor::nchw().normalize(NormalizeImage::scale(NormalizeImage::INV_255)),
         }
     }
 }

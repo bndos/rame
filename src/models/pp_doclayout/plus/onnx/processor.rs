@@ -16,8 +16,7 @@ impl PpDocLayoutPlusOnnxProcessor {
     pub fn new(inputs: Inputs, preprocess: Preprocess) -> Self {
         let pipeline = crate::preprocess::vision::pipeline()
             .add_op(preprocess.resize)
-            .add_op(preprocess.normalize)
-            .add_op(preprocess.permute)
+            .add_op(preprocess.tensor)
             .compile();
 
         Self { inputs, pipeline }
@@ -116,7 +115,7 @@ mod tests {
 
     #[test]
     fn creates_batched_paddle_onnx_inputs() {
-        let images = vec![
+        let images = [
             Image::from_rgb8(1, 1, vec![255, 127, 0]).unwrap(),
             Image::from_rgb8(1, 1, vec![0, 127, 255]).unwrap(),
         ];
