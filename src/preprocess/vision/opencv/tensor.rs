@@ -1,25 +1,58 @@
-use ndarray::Array4;
+use ndarray::{Array2, Array4};
 use opencv::core::{self, Mat, Size, ToInputArray, Vector};
 use opencv::prelude::MatTraitConst;
 use rayon::prelude::*;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch};
-use crate::preprocess::vision::{NormalizeImage, TensorLayout, ToTensor};
+use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
+use crate::preprocess::vision::opencv::OpenCvVisionBackend;
+use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch, OpenCvVisionData};
+use crate::preprocess::vision::{NormalizeImage, TensorLayout, ToTensor, VisionBatchOutput};
 
-impl ToTensor {
-    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
-        match self.layout {
-            TensorLayout::Nchw => self.apply_nchw(batch),
-        }
+impl PreprocessOp<OpenCvVisionBackend> for ToTensor {
+    fn forward<'a>(
+        &self,
+        data: <OpenCvVisionBackend as PreprocessBackend>::Data<'a>,
+    ) -> RameResult<<OpenCvVisionBackend as PreprocessBackend>::Data<'a>> {
+        let batch = data.into_image_batch()?;
+        let tensor = match self.layout {
+            TensorLayout::Nchw => self.apply_nchw(&batch)?,
+        };
+
+        self.output(batch, tensor)
+            .map(OpenCvVisionData::TensorBatch)
     }
 }
 
 impl ToTensor {
-    fn apply_nchw(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
+    fn output(
+        &self,
+        batch: OpenCvVisionBatch<'_>,
+        tensor: Array4<f32>,
+    ) -> RameResult<VisionBatchOutput> {
+        let len = batch.items.len();
+        let mut image_shapes = Array2::zeros((len, 2));
+        let mut scale_factors = Array2::zeros((len, 2));
+        let shape = tensor.shape();
+
+        for (index, state) in batch.items.iter().enumerate() {
+            image_shapes[[index, 0]] = shape[2] as f32;
+            image_shapes[[index, 1]] = shape[3] as f32;
+            scale_factors[[index, 0]] = state.scale_factor[0];
+            scale_factors[[index, 1]] = state.scale_factor[1];
+        }
+
+        Ok(VisionBatchOutput {
+            tensor,
+            image_shapes,
+            scale_factors,
+        })
+    }
+
+    fn apply_nchw(&self, batch: &OpenCvVisionBatch<'_>) -> RameResult<Array4<f32>> {
         if batch.items.is_empty() {
-            return Ok(());
+            return Ok(Array4::zeros((0, 3, 0, 0)));
         }
 
         let size = batch.items[0].image.size().map_err(PreprocessError::from)?;
@@ -40,13 +73,9 @@ impl ToTensor {
                 self.image_into_nchw(&item.image, height, width, plane, output)
             })?;
 
-        batch.tensor = Some(tensor);
-
-        Ok(())
+        Ok(tensor)
     }
-}
 
-impl ToTensor {
     fn image_into_nchw(
         &self,
         image: &OpenCvImage<'_>,
@@ -146,17 +175,21 @@ fn ensure_size(image: &OpenCvImage<'_>, expected: Size) -> RameResult<()> {
 #[cfg(test)]
 mod tests {
     use crate::image::Image;
-    use crate::preprocess::vision::opencv::state::OpenCvVisionBatch;
+    use crate::preprocess::pipeline::PreprocessOp;
+    use crate::preprocess::vision::opencv::state::{OpenCvVisionBatch, OpenCvVisionData};
     use crate::preprocess::vision::{NormalizeImage, ToTensor};
 
     #[test]
     fn converts_images_to_nchw_tensor() {
         let images = [Image::from_rgb8(2, 1, vec![255, 0, 64, 32, 128, 255]).unwrap()];
         let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
-        let mut batch = OpenCvVisionBatch::new(&image_views).unwrap();
-
-        ToTensor::nchw().apply_opencv(&mut batch).unwrap();
-        let output = batch.finish().unwrap();
+        let batch = OpenCvVisionBatch::new(&image_views).unwrap();
+        let output = ToTensor::nchw()
+            .forward(OpenCvVisionData::ImageBatch(batch))
+            .unwrap();
+        let OpenCvVisionData::TensorBatch(output) = output else {
+            panic!("expected tensor batch");
+        };
 
         assert_eq!(output.tensor.shape(), &[1, 3, 1, 2]);
         assert_eq!(output.tensor[[0, 0, 0, 0]], 255.0);
@@ -176,13 +209,15 @@ mod tests {
 
         let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
         let normalize = NormalizeImage::new(0.5, [0.1, 0.2, 0.3], [1.0, 2.0, 4.0]);
-        let mut batch = OpenCvVisionBatch::new(&image_views).unwrap();
+        let batch = OpenCvVisionBatch::new(&image_views).unwrap();
 
-        ToTensor::nchw()
+        let output = ToTensor::nchw()
             .normalize(normalize)
-            .apply_opencv(&mut batch)
+            .forward(OpenCvVisionData::ImageBatch(batch))
             .unwrap();
-        let output = batch.finish().unwrap();
+        let OpenCvVisionData::TensorBatch(output) = output else {
+            panic!("expected tensor batch");
+        };
 
         let expected = ndarray::Array4::from_shape_vec(
             (2, 3, 1, 2),

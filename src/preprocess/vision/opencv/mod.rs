@@ -1,4 +1,3 @@
-mod compile;
 mod error;
 mod resize;
 mod state;

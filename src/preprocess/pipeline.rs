@@ -6,31 +6,27 @@ use crate::RameResult;
 pub trait PreprocessBackend: Sized {
     /// Raw input consumed by this preprocessing state.
     type Source<'a>;
-    /// Mutable batch threaded through every preprocessing op.
-    type Batch<'a>;
+    /// Runtime data threaded through every preprocessing op.
+    type Data<'a>;
     /// Output produced after all preprocessing ops have run over a batch.
     type Output;
-    /// Typed operation IR compiled by this backend.
-    type Op: PreprocessOp<Self>;
 
-    fn batch<'a>(&self, sources: &'a [Self::Source<'a>]) -> RameResult<Self::Batch<'a>>;
+    fn input<'a>(&self, sources: &'a [Self::Source<'a>]) -> RameResult<Self::Data<'a>>;
 
-    fn finish(&self, batch: Self::Batch<'_>) -> RameResult<Self::Output>;
-
-    fn compile(&self, ops: &mut Vec<Self::Op>);
+    fn finish(&self, data: Self::Data<'_>) -> RameResult<Self::Output>;
 
     fn process_many<'a>(
         &self,
         sources: &'a [Self::Source<'a>],
-        ops: &[Self::Op],
+        ops: &[Box<dyn PreprocessOp<Self>>],
     ) -> RameResult<Self::Output> {
-        let mut batch = self.batch(sources)?;
+        let mut data = self.input(sources)?;
 
         for op in ops {
-            op.apply(&mut batch)?;
+            data = op.forward(data)?;
         }
 
-        self.finish(batch)
+        self.finish(data)
     }
 }
 
@@ -39,17 +35,16 @@ pub trait PreprocessOp<B>: fmt::Debug + Send + Sync
 where
     B: PreprocessBackend,
 {
-    fn apply<'a>(&self, batch: &mut B::Batch<'a>) -> RameResult<()>;
+    fn forward<'a>(&self, data: B::Data<'a>) -> RameResult<B::Data<'a>>;
 }
 
 /// Ordered preprocessing operation list.
-#[derive(Clone)]
 pub struct PreprocessPipeline<B>
 where
     B: PreprocessBackend,
 {
     backend: B,
-    ops: Vec<B::Op>,
+    ops: Vec<Box<dyn PreprocessOp<B>>>,
 }
 
 impl<B> PreprocessPipeline<B>
@@ -63,8 +58,8 @@ where
         }
     }
 
-    pub fn add_op(mut self, op: impl Into<B::Op>) -> Self {
-        self.ops.push(op.into());
+    pub fn add_op(mut self, op: impl PreprocessOp<B> + 'static) -> Self {
+        self.ops.push(Box::new(op));
         self
     }
 
@@ -72,8 +67,7 @@ where
         self.ops.len()
     }
 
-    pub fn compile(mut self) -> Self {
-        self.backend.compile(&mut self.ops);
+    pub fn compile(self) -> Self {
         self
     }
 

@@ -1,4 +1,3 @@
-use ndarray::{Array2, Array4};
 use opencv::boxed_ref::BoxedRef;
 use opencv::core::{Mat, Vec3b};
 use opencv::prelude::MatTraitConst;
@@ -6,8 +5,8 @@ use opencv::prelude::MatTraitConst;
 use crate::RameResult;
 use crate::image::ImageView;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
-use crate::preprocess::vision::{VisionBatchOutput, VisionOp};
+use crate::preprocess::pipeline::PreprocessBackend;
+use crate::preprocess::vision::VisionBatchOutput;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenCvVisionBackend;
@@ -23,7 +22,12 @@ pub struct OpenCvVisionState<'a> {
 #[doc(hidden)]
 pub struct OpenCvVisionBatch<'a> {
     pub(super) items: Vec<OpenCvVisionState<'a>>,
-    pub(super) tensor: Option<Array4<f32>>,
+}
+
+#[doc(hidden)]
+pub enum OpenCvVisionData<'a> {
+    ImageBatch(OpenCvVisionBatch<'a>),
+    TensorBatch(VisionBatchOutput),
 }
 
 #[doc(hidden)]
@@ -34,28 +38,31 @@ pub(super) enum OpenCvImage<'a> {
 
 impl PreprocessBackend for OpenCvVisionBackend {
     type Source<'a> = ImageView<'a>;
-    type Batch<'a> = OpenCvVisionBatch<'a>;
+    type Data<'a> = OpenCvVisionData<'a>;
     type Output = VisionBatchOutput;
-    type Op = VisionOp;
 
-    fn compile(&self, ops: &mut Vec<Self::Op>) {
-        super::compile::compile(ops);
+    fn input<'a>(&self, images: &'a [Self::Source<'a>]) -> RameResult<Self::Data<'a>> {
+        OpenCvVisionBatch::new(images).map(OpenCvVisionData::ImageBatch)
     }
 
-    fn batch<'a>(&self, images: &'a [Self::Source<'a>]) -> RameResult<Self::Batch<'a>> {
-        OpenCvVisionBatch::new(images)
-    }
-
-    fn finish(&self, batch: Self::Batch<'_>) -> RameResult<Self::Output> {
-        batch.finish()
+    fn finish(&self, data: Self::Data<'_>) -> RameResult<Self::Output> {
+        match data {
+            OpenCvVisionData::ImageBatch(_) => Err(PreprocessError::MissingOutput.into()),
+            OpenCvVisionData::TensorBatch(output) => Ok(output),
+        }
     }
 }
 
-impl PreprocessOp<OpenCvVisionBackend> for VisionOp {
-    fn apply<'a>(&self, batch: &mut OpenCvVisionBatch<'a>) -> RameResult<()> {
-        match *self {
-            Self::Resize(op) => op.apply_opencv(batch),
-            Self::ToTensor(op) => op.apply_opencv(batch),
+impl<'a> OpenCvVisionData<'a> {
+    pub(super) fn into_image_batch(self) -> RameResult<OpenCvVisionBatch<'a>> {
+        match self {
+            Self::ImageBatch(batch) => Ok(batch),
+            Self::TensorBatch(_) => Err(PreprocessError::InvalidTensorShape {
+                name: "opencv preprocess data",
+                expected: "image batch".to_string(),
+                actual: vec![],
+            }
+            .into()),
         }
     }
 }
@@ -97,30 +104,6 @@ impl<'a> OpenCvVisionBatch<'a> {
             .map(OpenCvVisionState::new)
             .collect::<RameResult<Vec<_>>>()?;
 
-        Ok(Self {
-            items,
-            tensor: None,
-        })
-    }
-
-    pub(super) fn finish(self) -> RameResult<VisionBatchOutput> {
-        let len = self.items.len();
-        let mut image_shapes = Array2::zeros((len, 2));
-        let mut scale_factors = Array2::zeros((len, 2));
-        let tensor = self.tensor.ok_or(PreprocessError::MissingOutput)?;
-        let shape = tensor.shape();
-
-        for (index, state) in self.items.iter().enumerate() {
-            image_shapes[[index, 0]] = shape[2] as f32;
-            image_shapes[[index, 1]] = shape[3] as f32;
-            scale_factors[[index, 0]] = state.scale_factor[0];
-            scale_factors[[index, 1]] = state.scale_factor[1];
-        }
-
-        Ok(VisionBatchOutput {
-            tensor,
-            image_shapes,
-            scale_factors,
-        })
+        Ok(Self { items })
     }
 }

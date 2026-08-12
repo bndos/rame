@@ -5,7 +5,7 @@ use crate::preprocess::vision::VisionPipeline;
 use crate::runtime::{ProcessedBatch, Processor};
 use crate::tensor::{TensorMap, TensorValue};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[doc(hidden)]
 pub struct PpDocLayoutPlusOnnxProcessor {
     inputs: Inputs,

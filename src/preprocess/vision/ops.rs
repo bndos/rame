@@ -107,22 +107,3 @@ impl ToTensor {
         self
     }
 }
-
-/// Typed vision preprocessing operation.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum VisionOp {
-    Resize(Resize),
-    ToTensor(ToTensor),
-}
-
-impl From<Resize> for VisionOp {
-    fn from(op: Resize) -> Self {
-        Self::Resize(op)
-    }
-}
-
-impl From<ToTensor> for VisionOp {
-    fn from(op: ToTensor) -> Self {
-        Self::ToTensor(op)
-    }
-}

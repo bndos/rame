@@ -4,16 +4,28 @@ use rayon::prelude::*;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch, OpenCvVisionState};
+use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
+use crate::preprocess::vision::opencv::OpenCvVisionBackend;
+use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionData, OpenCvVisionState};
 use crate::preprocess::vision::{Interpolation, Resize, ResizeMode};
 
-impl Resize {
-    pub(super) fn apply_opencv(&self, batch: &mut OpenCvVisionBatch<'_>) -> RameResult<()> {
-        batch.items.par_iter_mut().try_for_each(|item| {
-            item.image = OpenCvImage::Owned(self.resize_mat(&item.image)?);
-            item.scale_factor = self.scale_factor(item);
-            Ok(())
-        })
+impl PreprocessOp<OpenCvVisionBackend> for Resize {
+    fn forward<'a>(
+        &self,
+        data: <OpenCvVisionBackend as PreprocessBackend>::Data<'a>,
+    ) -> RameResult<<OpenCvVisionBackend as PreprocessBackend>::Data<'a>> {
+        let mut batch = data.into_image_batch()?;
+
+        batch
+            .items
+            .par_iter_mut()
+            .try_for_each(|item| -> RameResult<()> {
+                item.image = OpenCvImage::Owned(self.resize_mat(&item.image)?);
+                item.scale_factor = self.scale_factor(item);
+                Ok(())
+            })?;
+
+        Ok(OpenCvVisionData::ImageBatch(batch))
     }
 }
 
