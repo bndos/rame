@@ -1,4 +1,3 @@
-mod boxes;
 pub mod decoder;
 mod labels;
 mod model;

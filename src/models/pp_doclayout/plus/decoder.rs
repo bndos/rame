@@ -2,7 +2,7 @@ use ndarray::ArrayView2;
 
 use crate::RameResult;
 use crate::layout::{Geometry, LayoutRegion, LayoutResult, Rect};
-use crate::models::pp_doclayout::plus::boxes::BatchedBoxes;
+use crate::models::pp_doclayout::boxes::BatchedBoxes;
 use crate::models::pp_doclayout::plus::labels::label_for_class_id;
 use crate::runtime::{DecodeBatch, Decoder};
 
@@ -44,6 +44,7 @@ impl Decoder for PpDocLayoutPlusDecoder {
             batch.outputs,
             &self.boxes_output_name,
             &self.boxes_num_output_name,
+            6,
         )?;
         let mut results = Vec::with_capacity(batched_boxes.len());
 
