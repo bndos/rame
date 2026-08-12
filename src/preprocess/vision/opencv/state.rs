@@ -5,7 +5,7 @@ use opencv::prelude::MatTraitConst;
 use crate::RameResult;
 use crate::image::ImageView;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::pipeline::PreprocessBackend;
+use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::VisionBatchOutput;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -50,6 +50,10 @@ impl PreprocessBackend for OpenCvVisionBackend {
             OpenCvVisionData::ImageBatch(_) => Err(PreprocessError::MissingOutput.into()),
             OpenCvVisionData::TensorBatch(output) => Ok(output),
         }
+    }
+
+    fn compile(&self, ops: Vec<Box<dyn PreprocessOp<Self>>>) -> Vec<Box<dyn PreprocessOp<Self>>> {
+        ops
     }
 }
 

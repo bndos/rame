@@ -15,8 +15,12 @@ pub type DefaultVisionBackend = OpenCvVisionBackend;
 pub type VisionPipeline = crate::preprocess::pipeline::PreprocessPipeline<DefaultVisionBackend>;
 
 #[cfg(feature = "opencv")]
-pub fn pipeline() -> VisionPipeline {
-    crate::preprocess::pipeline::PreprocessPipeline::new(DefaultVisionBackend::default())
+pub type VisionPipelineBuilder =
+    crate::preprocess::pipeline::PreprocessPipelineBuilder<DefaultVisionBackend>;
+
+#[cfg(feature = "opencv")]
+pub fn pipeline() -> VisionPipelineBuilder {
+    crate::preprocess::pipeline::PreprocessPipelineBuilder::new(DefaultVisionBackend::default())
 }
 
 #[cfg(all(test, feature = "opencv"))]
