@@ -37,7 +37,7 @@ mod _native {
     #[pymodule_export]
     use crate::layout::{PyGeometry, PyLayoutRegion, PyLayoutResult};
     #[pymodule_export]
-    use crate::models::pp_doclayout::PyPpDocLayoutPlusOnnx;
+    use crate::models::pp_doclayout::{PyPpDocLayoutPlusOnnx, PyPpDocLayoutV3Onnx};
 
     #[pymodule_init]
     fn module_init(module: &Bound<'_, PyModule>) -> PyResult<()> {

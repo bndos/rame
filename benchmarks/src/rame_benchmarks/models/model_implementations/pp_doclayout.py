@@ -15,6 +15,7 @@ rame_pp_doclayout_plus_onnx = ModelLoader(
     loader=partial(
         RameLayoutDetectionModel,
         source="PaddlePaddle/PP-DocLayout_plus-L_onnx",
+        model="pp-doclayout-plus",
         engine="onnxruntime",
     ),
     loader_kwargs={
@@ -79,4 +80,22 @@ paddle_pp_doclayout_v3 = ModelLoader(
         PaddleLayoutDetectionModel,
         model_name="PP-DocLayoutV3",
     ),
+)
+
+rame_pp_doclayout_v3_onnx = ModelLoader(
+    model_meta=ModelMeta(
+        name="rame-pp-doclayout-v3-onnx",
+        description="rame PP-DocLayoutV3 ONNX implementation.",
+    ),
+    loader=partial(
+        RameLayoutDetectionModel,
+        source="PaddlePaddle/PP-DocLayoutV3_onnx",
+        model="pp-doclayout-v3",
+        engine="onnxruntime",
+    ),
+    loader_kwargs={
+        "engine_config": {
+            "intra_op_num_threads": 10,
+        },
+    },
 )

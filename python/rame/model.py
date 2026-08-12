@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 from rame.layout import LayoutResult
 
-LayoutModelName: TypeAlias = Literal["pp-doclayout-plus"]
+LayoutModelName: TypeAlias = Literal["pp-doclayout-plus", "pp-doclayout-v3"]
 
 
 class LayoutModel(Protocol):

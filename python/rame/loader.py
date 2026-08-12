@@ -26,6 +26,11 @@ def load_layout_model(
                 source,
                 engine_config=_native_ort_session_config(engine_config),
             )
+        case "pp-doclayout-v3", "onnxruntime":
+            return _native.PpDocLayoutV3Onnx(
+                source,
+                engine_config=_native_ort_session_config(engine_config),
+            )
         case _:
             raise ValueError(
                 f"unsupported layout model {model!r} with engine {engine!r}"

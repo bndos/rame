@@ -7,6 +7,7 @@ from rame import (
     CpuExecutionProviderConfig,
     CudaExecutionProviderConfig,
     EngineName,
+    LayoutModelName,
     OrtSessionConfig,
     TensorRtExecutionProviderConfig,
     load_layout_model,
@@ -23,6 +24,7 @@ class RameLayoutDetectionModel:
         benchmark_model_meta: ModelMeta,
         *,
         source: str,
+        model: LayoutModelName,
         engine: EngineName,
         engine_config: dict[str, Any] | None = None,
         copy: bool = True,
@@ -31,7 +33,7 @@ class RameLayoutDetectionModel:
         self._copy = copy
         self._model = load_layout_model(
             source,
-            model="pp-doclayout-plus",
+            model=model,
             engine=engine,
             engine_config=engine_config_for(engine, engine_config),
         )

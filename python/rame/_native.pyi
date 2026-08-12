@@ -12,6 +12,7 @@ __all__ = [
     "OrtSessionConfig",
     "OrtTrtConfig",
     "PpDocLayoutPlusOnnx",
+    "PpDocLayoutV3Onnx",
     "__version__",
     "build_info",
 ]
@@ -147,6 +148,17 @@ class OrtSessionConfig:
     ) -> None: ...
 
 class PpDocLayoutPlusOnnx:
+    def __init__(
+        self, source: str, engine_config: OrtSessionConfig | None = None
+    ) -> None: ...
+    def detect_layout(
+        self, image: NDArray[np.uint8], *, copy: bool = True
+    ) -> LayoutResult: ...
+    def detect_layout_many(
+        self, images: list[NDArray[np.uint8]], *, copy: bool = True
+    ) -> list[LayoutResult]: ...
+
+class PpDocLayoutV3Onnx:
     def __init__(
         self, source: str, engine_config: OrtSessionConfig | None = None
     ) -> None: ...
