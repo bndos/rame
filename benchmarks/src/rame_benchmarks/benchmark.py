@@ -70,6 +70,9 @@ class Benchmark:
     def run_once(self, name: str | None = None) -> BenchmarkRunResult:
         tasks = get_tasks(self.task_names)
         data_folder = self.output_folder / "data"
+        for task in tasks:
+            task.load_data(data_folder / task.name.value)
+
         loaded_model = get_model(self.model, **(self.overrides or {}))
         results = []
 
