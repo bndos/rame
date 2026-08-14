@@ -5,6 +5,7 @@ use crate::models::ModelError;
 use crate::preprocess::PreprocessError;
 use crate::session::SessionError;
 use crate::sources::SourceError;
+use crate::tensor::TensorError;
 
 pub type RameResult<T> = Result<T, RameError>;
 
@@ -31,4 +32,7 @@ pub enum RameError {
 
     #[error(transparent)]
     Source(#[from] SourceError),
+
+    #[error(transparent)]
+    Tensor(#[from] TensorError),
 }

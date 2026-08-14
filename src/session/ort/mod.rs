@@ -1,5 +1,6 @@
 mod config;
 mod error;
+mod mapper;
 mod session;
 
 #[cfg(feature = "onnxruntime-tensorrt")]

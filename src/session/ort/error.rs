@@ -10,6 +10,9 @@ pub enum OrtError {
 
     #[error("unsupported ONNX tensor type `{tensor_type}` for `{name}`")]
     UnsupportedTensorType { name: String, tensor_type: String },
+
+    #[error("invalid ONNX Runtime input `{name}`: {reason}")]
+    InvalidInput { name: String, reason: String },
 }
 
 impl From<ort::Error> for OrtError {
