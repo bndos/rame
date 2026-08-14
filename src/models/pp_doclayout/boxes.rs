@@ -1,8 +1,9 @@
-use ndarray::{ArrayView2, Ix2, s};
+use candle_core::DType;
+use ndarray::{Array2, ArrayView2, Ix2, s};
 
 use crate::RameResult;
 use crate::models::ModelError;
-use crate::tensor::{TensorMap, TensorValue};
+use crate::tensor::TensorMap;
 
 /// Per-image view of packed Paddle layout detection boxes.
 ///
@@ -10,15 +11,15 @@ use crate::tensor::{TensorMap, TensorValue};
 /// report how many rows belong to each image separately. This helper validates
 /// and splits that representation.
 #[derive(Debug)]
-pub(super) struct BatchedBoxes<'a> {
-    boxes: ArrayView2<'a, f32>,
+pub(super) struct BatchedBoxes {
+    boxes: Array2<f32>,
     offsets: Vec<usize>,
 }
 
-impl<'a> BatchedBoxes<'a> {
+impl BatchedBoxes {
     /// Reads a packed boxes output and its per-image row counts.
     pub(super) fn from_outputs(
-        outputs: &'a TensorMap,
+        outputs: &TensorMap,
         boxes_name: &str,
         boxes_num_name: &str,
         columns: usize,
@@ -57,42 +58,49 @@ impl<'a> BatchedBoxes<'a> {
     }
 }
 
-fn require_boxes_tensor<'a>(
-    outputs: &'a TensorMap,
+fn require_boxes_tensor(
+    outputs: &TensorMap,
     name: &str,
     columns: usize,
-) -> RameResult<ArrayView2<'a, f32>> {
+) -> RameResult<Array2<f32>> {
     let tensor = outputs
         .get(name)
         .ok_or_else(|| ModelError::MissingTensor(name.to_string()))?;
 
-    let TensorValue::F32(tensor) = tensor else {
+    if tensor.dtype() != DType::F32 {
         return Err(ModelError::InvalidTensorType {
             name: name.to_string(),
             expected: "f32".to_string(),
-            actual: tensor.kind().to_string(),
-        }
-        .into());
-    };
-
-    let expected = format!("[N, {columns}]");
-    if tensor.shape().len() != 2 || tensor.shape()[1] != columns {
-        return Err(ModelError::InvalidTensorShape {
-            name: name.to_string(),
-            expected,
-            actual: tensor.shape().to_vec(),
+            actual: tensor.dtype().as_str().to_string(),
         }
         .into());
     }
 
-    tensor.view().into_dimensionality::<Ix2>().map_err(|_| {
-        ModelError::InvalidTensorShape {
+    if tensor.dims().len() != 2 || tensor.dims()[1] != columns {
+        return Err(ModelError::InvalidTensorShape {
             name: name.to_string(),
             expected: format!("[N, {columns}]"),
-            actual: tensor.shape().to_vec(),
+            actual: tensor.dims().to_vec(),
         }
-        .into()
-    })
+        .into());
+    }
+
+    tensor
+        .to_array::<f32>()
+        .map_err(|err| ModelError::InvalidTensorShape {
+            name: name.to_string(),
+            expected: err.to_string(),
+            actual: tensor.dims().to_vec(),
+        })?
+        .into_dimensionality::<Ix2>()
+        .map_err(|_| {
+            ModelError::InvalidTensorShape {
+                name: name.to_string(),
+                expected: format!("[N, {columns}]"),
+                actual: tensor.dims().to_vec(),
+            }
+            .into()
+        })
 }
 
 fn require_boxes_num_tensor(outputs: &TensorMap, name: &str) -> RameResult<Vec<usize>> {
@@ -100,44 +108,46 @@ fn require_boxes_num_tensor(outputs: &TensorMap, name: &str) -> RameResult<Vec<u
         .get(name)
         .ok_or_else(|| ModelError::MissingTensor(name.to_string()))?;
 
-    match tensor {
-        TensorValue::I32(tensor) => {
-            if tensor.shape().len() != 1 {
-                return Err(ModelError::InvalidTensorShape {
-                    name: name.to_string(),
-                    expected: "[batch]".to_string(),
-                    actual: tensor.shape().to_vec(),
-                }
-                .into());
-            }
-
-            tensor
-                .iter()
-                .map(|count| usize::try_from(*count).map_err(|_| invalid_box_count(name, *count)))
-                .collect()
+    if tensor.dims().len() != 1 {
+        return Err(ModelError::InvalidTensorShape {
+            name: name.to_string(),
+            expected: "[batch]".to_string(),
+            actual: tensor.dims().to_vec(),
         }
-        TensorValue::I64(tensor) => {
-            if tensor.shape().len() != 1 {
-                return Err(ModelError::InvalidTensorShape {
-                    name: name.to_string(),
-                    expected: "[batch]".to_string(),
-                    actual: tensor.shape().to_vec(),
-                }
-                .into());
-            }
+        .into());
+    }
 
-            tensor
-                .iter()
-                .map(|count| usize::try_from(*count).map_err(|_| invalid_box_count(name, *count)))
-                .collect()
-        }
-        tensor => Err(ModelError::InvalidTensorType {
+    match tensor.dtype() {
+        DType::I32 => box_counts::<i32>(tensor, name),
+        DType::I64 => box_counts::<i64>(tensor, name),
+        _ => Err(ModelError::InvalidTensorType {
             name: name.to_string(),
             expected: "i32 or i64".to_string(),
-            actual: tensor.kind().to_string(),
+            actual: tensor.dtype().as_str().to_string(),
         }
         .into()),
     }
+}
+
+fn box_counts<T>(tensor: &crate::tensor::Tensor, name: &str) -> RameResult<Vec<usize>>
+where
+    T: candle_core::WithDType + Copy + TryInto<usize>,
+    T::Error: std::fmt::Debug,
+{
+    tensor
+        .to_array::<T>()
+        .map_err(|err| ModelError::InvalidTensorShape {
+            name: name.to_string(),
+            expected: err.to_string(),
+            actual: tensor.dims().to_vec(),
+        })?
+        .iter()
+        .map(|count| {
+            (*count)
+                .try_into()
+                .map_err(|_| invalid_box_count(name, *count))
+        })
+        .collect()
 }
 
 fn invalid_box_count(name: &str, count: impl ToString) -> crate::RameError {
@@ -154,7 +164,7 @@ mod tests {
     use ndarray::{Array1, Array2};
 
     use crate::models::pp_doclayout::boxes::BatchedBoxes;
-    use crate::tensor::{TensorMap, TensorValue};
+    use crate::tensor::{Tensor, TensorMap};
 
     #[test]
     fn splits_boxes_by_boxes_num() {
@@ -215,10 +225,13 @@ mod tests {
 
     fn outputs_with_counts(boxes: Array2<f32>, counts: Vec<i32>) -> TensorMap {
         let mut outputs = TensorMap::new();
-        outputs.insert("boxes".to_string(), TensorValue::F32(boxes.into_dyn()));
+        outputs.insert(
+            "boxes".to_string(),
+            Tensor::from_array(boxes.into_dyn()).unwrap(),
+        );
         outputs.insert(
             "boxes_num".to_string(),
-            TensorValue::I32(Array1::from_vec(counts).into_dyn()),
+            Tensor::from_array(Array1::from_vec(counts).into_dyn()).unwrap(),
         );
         outputs
     }

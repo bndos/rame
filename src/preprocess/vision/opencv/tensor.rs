@@ -1,7 +1,5 @@
-use ndarray::{Array2, Array4};
 use opencv::core::{self, Mat, Size, ToInputArray, Vector};
 use opencv::prelude::MatTraitConst;
-use rayon::prelude::*;
 
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
@@ -9,6 +7,7 @@ use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::opencv::OpenCvVisionBackend;
 use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch, OpenCvVisionData};
 use crate::preprocess::vision::{NormalizeImage, TensorLayout, ToTensor, VisionBatchOutput};
+use crate::tensor::Tensor;
 
 impl PreprocessOp<OpenCvVisionBackend> for ToTensor {
     fn forward<'a>(
@@ -16,12 +15,11 @@ impl PreprocessOp<OpenCvVisionBackend> for ToTensor {
         data: <OpenCvVisionBackend as PreprocessBackend>::Data<'a>,
     ) -> RameResult<<OpenCvVisionBackend as PreprocessBackend>::Data<'a>> {
         let batch = data.into_image_batch()?;
-        let tensor = match self.layout {
-            TensorLayout::Nchw => self.apply_nchw(&batch)?,
+        let output = match self.layout {
+            TensorLayout::Nchw => self.apply_nchw(batch)?,
         };
 
-        self.output(batch, tensor)
-            .map(OpenCvVisionData::TensorBatch)
+        Ok(OpenCvVisionData::TensorBatch(output))
     }
 }
 
@@ -29,19 +27,28 @@ impl ToTensor {
     fn output(
         &self,
         batch: OpenCvVisionBatch<'_>,
-        tensor: Array4<f32>,
+        data: Vec<f32>,
+        shape: [usize; 4],
     ) -> RameResult<VisionBatchOutput> {
         let len = batch.items.len();
-        let mut image_shapes = Array2::zeros((len, 2));
-        let mut scale_factors = Array2::zeros((len, 2));
-        let shape = tensor.shape();
 
+        let tensor = Tensor::from_vec(data, &shape).map_err(|err| PreprocessError::Backend {
+            backend: "candle",
+            message: err.to_string(),
+        })?;
+
+        let mut image_shapes = vec![0.0; len * 2];
+        let mut scale_factors = vec![0.0; len * 2];
         for (index, state) in batch.items.iter().enumerate() {
-            image_shapes[[index, 0]] = shape[2] as f32;
-            image_shapes[[index, 1]] = shape[3] as f32;
-            scale_factors[[index, 0]] = state.scale_factor[0];
-            scale_factors[[index, 1]] = state.scale_factor[1];
+            let offset = index * 2;
+            image_shapes[offset] = shape[2] as f32;
+            image_shapes[offset + 1] = shape[3] as f32;
+            scale_factors[offset] = state.scale_factor[0];
+            scale_factors[offset + 1] = state.scale_factor[1];
         }
+
+        let image_shapes = metadata_tensor(image_shapes, len)?;
+        let scale_factors = metadata_tensor(scale_factors, len)?;
 
         Ok(VisionBatchOutput {
             tensor,
@@ -50,30 +57,24 @@ impl ToTensor {
         })
     }
 
-    fn apply_nchw(&self, batch: &OpenCvVisionBatch<'_>) -> RameResult<Array4<f32>> {
+    fn apply_nchw(&self, batch: OpenCvVisionBatch<'_>) -> RameResult<VisionBatchOutput> {
         if batch.items.is_empty() {
-            return Ok(Array4::zeros((0, 3, 0, 0)));
+            return self.output(batch, Vec::new(), [0, 3, 0, 0]);
         }
 
         let size = batch.items[0].image.size().map_err(PreprocessError::from)?;
         let (height, width) = (size.height as usize, size.width as usize);
-        let mut tensor = Array4::zeros((batch.items.len(), 3, height, width));
-        // Writeable slice of the tensor used for OpenCV ops (&mut [f32])
-        let output = tensor
-            .as_slice_memory_order_mut()
-            .ok_or(PreprocessError::MissingOutput)?;
+        let len = batch.items.len();
+        let mut tensor = vec![0.0; len * 3 * height * width];
         // The number of pixels in a single channel
         let plane = height * width;
 
-        output
-            .par_chunks_mut(3 * plane)
-            .zip(batch.items.par_iter())
-            .try_for_each(|(output, item)| {
-                ensure_size(&item.image, size)?;
-                self.image_into_nchw(&item.image, height, width, plane, output)
-            })?;
+        for (output, item) in tensor.chunks_mut(3 * plane).zip(batch.items.iter()) {
+            ensure_size(&item.image, size)?;
+            self.image_into_nchw(&item.image, height, width, plane, output)?;
+        }
 
-        Ok(tensor)
+        self.output(batch, tensor, [len, 3, height, width])
     }
 
     fn image_into_nchw(
@@ -128,6 +129,16 @@ impl ToTensor {
     }
 }
 
+fn metadata_tensor(data: Vec<f32>, len: usize) -> RameResult<Tensor> {
+    Tensor::from_vec(data, &[len, 2]).map_err(|err| {
+        PreprocessError::Backend {
+            backend: "candle",
+            message: err.to_string(),
+        }
+        .into()
+    })
+}
+
 #[derive(Debug, Clone, Copy)]
 struct NormalizationCoefficients {
     scale: [f64; 3],
@@ -176,6 +187,9 @@ fn ensure_size(image: &OpenCvImage<'_>, expected: Size) -> RameResult<()> {
 mod tests {
     use crate::image::Image;
     use crate::preprocess::pipeline::PreprocessOp;
+    use crate::tensor::Tensor;
+    use ndarray::ArrayD;
+
     use crate::preprocess::vision::opencv::state::{OpenCvVisionBatch, OpenCvVisionData};
     use crate::preprocess::vision::{NormalizeImage, ToTensor};
 
@@ -191,13 +205,14 @@ mod tests {
             panic!("expected tensor batch");
         };
 
-        assert_eq!(output.tensor.shape(), &[1, 3, 1, 2]);
-        assert_eq!(output.tensor[[0, 0, 0, 0]], 255.0);
-        assert_eq!(output.tensor[[0, 1, 0, 0]], 0.0);
-        assert_eq!(output.tensor[[0, 2, 0, 0]], 64.0);
-        assert_eq!(output.tensor[[0, 0, 0, 1]], 32.0);
-        assert_eq!(output.tensor[[0, 1, 0, 1]], 128.0);
-        assert_eq!(output.tensor[[0, 2, 0, 1]], 255.0);
+        assert_eq!(output.tensor.dims(), &[1, 3, 1, 2]);
+        let tensor = tensor_to_array(output.tensor);
+        assert_eq!(tensor[[0, 0, 0, 0]], 255.0);
+        assert_eq!(tensor[[0, 1, 0, 0]], 0.0);
+        assert_eq!(tensor[[0, 2, 0, 0]], 64.0);
+        assert_eq!(tensor[[0, 0, 0, 1]], 32.0);
+        assert_eq!(tensor[[0, 1, 0, 1]], 128.0);
+        assert_eq!(tensor[[0, 2, 0, 1]], 255.0);
     }
 
     #[test]
@@ -238,16 +253,21 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(output.tensor.shape(), expected.shape());
-        assert_eq!(output.image_shapes.shape(), &[2, 2]);
-        assert_eq!(output.scale_factors.shape(), &[2, 2]);
+        assert_eq!(output.tensor.dims(), expected.shape());
+        assert_eq!(output.image_shapes.dims(), &[2, 2]);
+        assert_eq!(output.scale_factors.dims(), &[2, 2]);
 
-        for (index, (left, right)) in output.tensor.iter().zip(expected.iter()).enumerate() {
+        let tensor = tensor_to_array(output.tensor);
+        for (index, (left, right)) in tensor.iter().zip(expected.iter()).enumerate() {
             let diff = (left - right).abs();
             assert!(
                 diff < 1e-5,
                 "tensor mismatch at {index}: left={left}, right={right}, diff={diff}"
             );
         }
+    }
+
+    fn tensor_to_array(tensor: Tensor) -> ArrayD<f32> {
+        tensor.to_array().unwrap()
     }
 }

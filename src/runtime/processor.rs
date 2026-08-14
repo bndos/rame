@@ -2,7 +2,7 @@ use crate::RameResult;
 use crate::tensor::TensorMap;
 
 /// Batched model inputs produced by preprocessing, plus per-item decoding metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ProcessedBatch<C = ()> {
     /// Number of source items represented by `inputs`.
     pub len: usize,

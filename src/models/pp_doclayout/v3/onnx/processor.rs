@@ -3,7 +3,7 @@ use crate::image::ImageView;
 use crate::models::pp_doclayout::v3::onnx::{Inputs, Preprocess};
 use crate::preprocess::vision::VisionPipeline;
 use crate::runtime::{ProcessedBatch, Processor};
-use crate::tensor::{TensorMap, TensorValue};
+use crate::tensor::TensorMap;
 
 #[derive(Debug)]
 #[doc(hidden)]
@@ -51,18 +51,9 @@ impl Processor for PpDocLayoutV3OnnxProcessor {
 
 fn bind_inputs(inputs: &Inputs, output: crate::preprocess::vision::VisionBatchOutput) -> TensorMap {
     let mut tensors = TensorMap::new();
-    tensors.insert(
-        inputs.image.clone(),
-        TensorValue::F32(output.tensor.into_dyn()),
-    );
-    tensors.insert(
-        inputs.im_shape.clone(),
-        TensorValue::F32(output.image_shapes.into_dyn()),
-    );
-    tensors.insert(
-        inputs.scale_factor.clone(),
-        TensorValue::F32(output.scale_factors.into_dyn()),
-    );
+    tensors.insert(inputs.image.clone(), output.tensor);
+    tensors.insert(inputs.im_shape.clone(), output.image_shapes);
+    tensors.insert(inputs.scale_factor.clone(), output.scale_factors);
     tensors
 }
 
@@ -72,7 +63,9 @@ mod tests {
     use crate::models::pp_doclayout::v3::onnx::{Inputs, Preprocess};
     use crate::preprocess::vision::{Interpolation, Resize};
     use crate::runtime::Processor;
-    use crate::tensor::TensorValue;
+    use crate::tensor::Tensor;
+    use candle_core::DType;
+    use ndarray::ArrayD;
 
     use super::PpDocLayoutV3OnnxProcessor;
 
@@ -93,16 +86,11 @@ mod tests {
         assert_eq!(processed.len, 1);
         assert_eq!(processed.contexts.len(), 1);
         assert_eq!(processed.inputs.len(), 3);
-        let TensorValue::F32(image) = &processed.inputs["image"] else {
-            panic!("expected f32 image tensor");
-        };
-        let TensorValue::F32(im_shape) = &processed.inputs["im_shape"] else {
-            panic!("expected f32 im_shape tensor");
-        };
-        let TensorValue::F32(scale_factor) = &processed.inputs["scale_factor"] else {
-            panic!("expected f32 scale_factor tensor");
-        };
+        let image = f32_array(&processed.inputs["image"]);
+        let im_shape = f32_array(&processed.inputs["im_shape"]);
+        let scale_factor = f32_array(&processed.inputs["scale_factor"]);
 
+        assert_eq!(processed.inputs["image"].dtype(), DType::F32);
         assert_eq!(image.shape(), &[1, 3, 2, 2]);
         assert_eq!(image[[0, 0, 0, 0]], 255.0);
         assert_eq!(im_shape.shape(), &[1, 2]);
@@ -132,16 +120,11 @@ mod tests {
 
         assert_eq!(processed.len, 2);
         assert_eq!(processed.contexts.len(), 2);
-        let TensorValue::F32(image) = &processed.inputs["image"] else {
-            panic!("expected f32 image tensor");
-        };
-        let TensorValue::F32(im_shape) = &processed.inputs["im_shape"] else {
-            panic!("expected f32 im_shape tensor");
-        };
-        let TensorValue::F32(scale_factor) = &processed.inputs["scale_factor"] else {
-            panic!("expected f32 scale_factor tensor");
-        };
+        let image = f32_array(&processed.inputs["image"]);
+        let im_shape = f32_array(&processed.inputs["im_shape"]);
+        let scale_factor = f32_array(&processed.inputs["scale_factor"]);
 
+        assert_eq!(processed.inputs["image"].dtype(), DType::F32);
         assert_eq!(image.shape(), &[2, 3, 2, 2]);
         assert_eq!(image[[0, 0, 0, 0]], 255.0);
         assert_eq!(image[[1, 2, 0, 0]], 255.0);
@@ -151,5 +134,11 @@ mod tests {
         assert_eq!(scale_factor.shape(), &[2, 2]);
         assert_eq!(scale_factor[[0, 0]], 2.0);
         assert_eq!(scale_factor[[1, 1]], 2.0);
+    }
+
+    fn f32_array(tensor: &Tensor) -> ArrayD<f32> {
+        tensor.to_array().unwrap_or_else(|err| {
+            panic!("expected f32 tensor: {err}");
+        })
     }
 }

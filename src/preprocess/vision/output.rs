@@ -1,16 +1,16 @@
-use ndarray::{Array2, Array4};
+use crate::tensor::Tensor;
 
 /// Batched image tensor and per-image metadata produced by vision preprocessing.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct VisionBatchOutput {
-    pub tensor: Array4<f32>,
-    pub image_shapes: Array2<f32>,
-    pub scale_factors: Array2<f32>,
+    pub tensor: Tensor,
+    pub image_shapes: Tensor,
+    pub scale_factors: Tensor,
 }
 
 impl VisionBatchOutput {
     pub fn len(&self) -> usize {
-        self.tensor.shape()[0]
+        self.tensor.dims()[0]
     }
 
     pub fn is_empty(&self) -> bool {

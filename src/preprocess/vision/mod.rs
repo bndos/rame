@@ -39,10 +39,12 @@ mod tests {
         let image_view = image.as_view();
         let output = pipeline.process_many(&[image_view]).unwrap();
 
-        assert_eq!(output.tensor.shape(), &[1, 3, 2, 2]);
-        assert_eq!(output.scale_factors.shape(), &[1, 2]);
-        assert_eq!(output.scale_factors[[0, 0]], 2.0);
-        assert_eq!(output.scale_factors[[0, 1]], 2.0);
-        assert_eq!(output.tensor[[0, 0, 0, 0]], 1.0);
+        assert_eq!(output.tensor.dims(), &[1, 3, 2, 2]);
+        assert_eq!(output.scale_factors.dims(), &[1, 2]);
+        let scale_factors = output.scale_factors.to_array::<f32>().unwrap();
+        assert_eq!(scale_factors[[0, 0]], 2.0);
+        assert_eq!(scale_factors[[0, 1]], 2.0);
+        let tensor = output.tensor.to_array::<f32>().unwrap();
+        assert_eq!(tensor[[0, 0, 0, 0]], 1.0);
     }
 }

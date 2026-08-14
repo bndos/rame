@@ -94,6 +94,9 @@ def _native_execution_provider_config(
                 timing_cache_path=provider.timing_cache_path,
                 force_timing_cache=provider.force_timing_cache,
                 auxiliary_streams=provider.auxiliary_streams,
+                profile_min_shapes=provider.profile_min_shapes,
+                profile_opt_shapes=provider.profile_opt_shapes,
+                profile_max_shapes=provider.profile_max_shapes,
             )
         case _:
             raise TypeError(f"unsupported execution provider config {type(provider)!r}")

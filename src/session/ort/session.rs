@@ -1,13 +1,11 @@
 use std::path::Path;
 
-use ort::session::SessionInputValue;
-use ort::session::{OutputSelector, RunOptions, Session, SessionOutputs};
-use ort::value::{Tensor, TensorElementType};
+use ort::session::{OutputSelector, RunOptions, Session};
 
 use crate::RameResult;
 use crate::session::ort::{OrtError, OrtSessionConfig};
 use crate::session::{InferSession, SessionBackend};
-use crate::tensor::{TensorMap, TensorValue};
+use crate::tensor::TensorMap;
 
 #[derive(Debug, Clone, Copy)]
 pub struct OrtBackend;
@@ -38,25 +36,21 @@ pub struct OrtSession {
 
 impl InferSession for OrtSession {
     fn run(&mut self, inputs: TensorMap) -> RameResult<TensorMap> {
-        let inputs: Vec<(String, SessionInputValue<'_>)> = inputs
-            .into_iter()
-            .map(|(name, value)| match value {
-                TensorValue::F32(array) => {
-                    Tensor::from_array(array).map(|tensor| (name, tensor.into()))
-                }
-                TensorValue::I32(array) => {
-                    Tensor::from_array(array).map(|tensor| (name, tensor.into()))
-                }
-                TensorValue::I64(array) => {
-                    Tensor::from_array(array).map(|tensor| (name, tensor.into()))
-                }
-            })
+        let input_buffers = inputs.into_iter().collect::<Vec<_>>();
+        let input_views = input_buffers
+            .iter()
+            .map(|(name, tensor)| tensor.ort_input(name))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(OrtError::from)?;
+        let inputs = input_views
+            .iter()
+            .map(|input| input.as_session_input())
             .collect::<Result<Vec<_>, _>>()
             .map_err(OrtError::from)?;
 
         let tensors = if self.output_names.is_empty() {
             let outputs = self.session.run(inputs).map_err(OrtError::from)?;
-            outputs_to_tensor_map(outputs)?
+            outputs.try_into()?
         } else {
             let selector = self
                 .output_names
@@ -71,52 +65,9 @@ impl InferSession for OrtSession {
                 .session
                 .run_with_options(inputs, &options)
                 .map_err(OrtError::from)?;
-            outputs_to_tensor_map(outputs)?
+            outputs.try_into()?
         };
 
         Ok(tensors)
     }
-}
-
-fn outputs_to_tensor_map(outputs: SessionOutputs<'_>) -> RameResult<TensorMap> {
-    let mut tensors = TensorMap::new();
-    for (name, value) in outputs {
-        let value = match value.dtype().tensor_type() {
-            Some(TensorElementType::Float32) => TensorValue::F32(
-                value
-                    .try_extract_array::<f32>()
-                    .map_err(OrtError::from)?
-                    .to_owned(),
-            ),
-            Some(TensorElementType::Int32) => TensorValue::I32(
-                value
-                    .try_extract_array::<i32>()
-                    .map_err(OrtError::from)?
-                    .to_owned(),
-            ),
-            Some(TensorElementType::Int64) => TensorValue::I64(
-                value
-                    .try_extract_array::<i64>()
-                    .map_err(OrtError::from)?
-                    .to_owned(),
-            ),
-            Some(tensor_type) => {
-                return Err(OrtError::UnsupportedTensorType {
-                    name: name.to_string(),
-                    tensor_type: tensor_type.to_string(),
-                }
-                .into());
-            }
-            None => {
-                return Err(OrtError::UnsupportedTensorType {
-                    name: name.to_string(),
-                    tensor_type: value.dtype().to_string(),
-                }
-                .into());
-            }
-        };
-
-        tensors.insert(name.to_string(), value);
-    }
-    Ok(tensors)
 }

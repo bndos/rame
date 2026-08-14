@@ -81,7 +81,7 @@ mod tests {
     use crate::layout::{Geometry, LayoutLabel, Rect};
     use crate::models::pp_doclayout::plus::decoder::PpDocLayoutPlusDecoder;
     use crate::runtime::{DecodeBatch, Decoder};
-    use crate::tensor::{TensorMap, TensorValue};
+    use crate::tensor::{Tensor, TensorMap};
 
     #[test]
     fn decodes_pp_doclayout_plus_boxes() {
@@ -180,10 +180,10 @@ mod tests {
     fn rejects_non_f32_boxes() {
         let boxes = Array2::from_shape_vec((1, 6), vec![0_i64, 1, 2, 3, 4, 5]).unwrap();
         let mut outputs = TensorMap::new();
-        outputs.insert("boxes".to_string(), TensorValue::I64(boxes.into_dyn()));
+        outputs.insert("boxes".to_string(), tensor(boxes.into_dyn()));
         outputs.insert(
             "boxes_num".to_string(),
-            TensorValue::I32(Array1::from_vec(vec![1]).into_dyn()),
+            tensor(Array1::from_vec(vec![1]).into_dyn()),
         );
 
         let decoder = PpDocLayoutPlusDecoder::new("boxes", "boxes_num");
@@ -207,10 +207,10 @@ mod tests {
     fn requires_configured_boxes_output_name() {
         let boxes = Array2::from_shape_vec((1, 6), vec![2.0, 0.99, 1.0, 2.0, 3.0, 4.0]).unwrap();
         let mut outputs = TensorMap::new();
-        outputs.insert("other".to_string(), TensorValue::F32(boxes.into_dyn()));
+        outputs.insert("other".to_string(), tensor(boxes.into_dyn()));
         outputs.insert(
             "boxes_num".to_string(),
-            TensorValue::I32(Array1::from_vec(vec![1]).into_dyn()),
+            tensor(Array1::from_vec(vec![1]).into_dyn()),
         );
 
         let decoder = PpDocLayoutPlusDecoder::new("boxes", "boxes_num");
@@ -221,11 +221,18 @@ mod tests {
 
     fn outputs_with_counts(boxes: Array2<f32>, counts: Vec<i32>) -> TensorMap {
         let mut outputs = TensorMap::new();
-        outputs.insert("boxes".to_string(), TensorValue::F32(boxes.into_dyn()));
+        outputs.insert("boxes".to_string(), tensor(boxes.into_dyn()));
         outputs.insert(
             "boxes_num".to_string(),
-            TensorValue::I32(Array1::from_vec(counts).into_dyn()),
+            tensor(Array1::from_vec(counts).into_dyn()),
         );
         outputs
+    }
+
+    fn tensor<T>(array: ndarray::ArrayD<T>) -> Tensor
+    where
+        T: candle_core::WithDType + Clone,
+    {
+        Tensor::from_array(array).unwrap()
     }
 }
