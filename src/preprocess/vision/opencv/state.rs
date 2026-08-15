@@ -4,12 +4,29 @@ use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
 use crate::image::ImageView;
-use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::VisionBatchOutput;
+use crate::preprocess::{PreprocessConfig, PreprocessError};
+use crate::tensor::Device;
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct OpenCvVisionBackend;
+#[derive(Debug, Clone)]
+pub struct OpenCvVisionBackend {
+    device: Device,
+}
+
+impl Default for OpenCvVisionBackend {
+    fn default() -> Self {
+        Self::new(Device::cpu())
+    }
+}
+
+impl OpenCvVisionBackend {
+    pub fn new(device: impl Into<Device>) -> Self {
+        Self {
+            device: device.into(),
+        }
+    }
+}
 
 #[doc(hidden)]
 pub struct OpenCvVisionState<'a> {
@@ -22,6 +39,7 @@ pub struct OpenCvVisionState<'a> {
 #[doc(hidden)]
 pub struct OpenCvVisionBatch<'a> {
     pub(super) items: Vec<OpenCvVisionState<'a>>,
+    pub(super) device: Device,
 }
 
 #[doc(hidden)]
@@ -42,7 +60,7 @@ impl PreprocessBackend for OpenCvVisionBackend {
     type Output = VisionBatchOutput;
 
     fn input<'a>(&self, images: &'a [Self::Source<'a>]) -> RameResult<Self::Data<'a>> {
-        OpenCvVisionBatch::new(images).map(OpenCvVisionData::ImageBatch)
+        OpenCvVisionBatch::new(images, self.device.clone()).map(OpenCvVisionData::ImageBatch)
     }
 
     fn finish(&self, data: Self::Data<'_>) -> RameResult<Self::Output> {
@@ -102,12 +120,18 @@ impl<'a> OpenCvVisionState<'a> {
 }
 
 impl<'a> OpenCvVisionBatch<'a> {
-    pub(super) fn new(images: &'a [ImageView<'a>]) -> RameResult<Self> {
+    pub(super) fn new(images: &'a [ImageView<'a>], device: Device) -> RameResult<Self> {
         let items = images
             .iter()
             .map(OpenCvVisionState::new)
             .collect::<RameResult<Vec<_>>>()?;
 
-        Ok(Self { items })
+        Ok(Self { items, device })
+    }
+}
+
+impl From<PreprocessConfig> for OpenCvVisionBackend {
+    fn from(config: PreprocessConfig) -> Self {
+        Self::new(config.device)
     }
 }

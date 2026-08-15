@@ -3,10 +3,12 @@ use std::path::PathBuf;
 use crate::models::pp_doclayout::v3::decoder::PpDocLayoutV3Decoder;
 use crate::models::pp_doclayout::v3::model::PpDocLayoutV3;
 use crate::models::pp_doclayout::v3::onnx::processor::PpDocLayoutV3OnnxProcessor;
+use crate::preprocess::PreprocessConfig;
 use crate::preprocess::vision::{Interpolation, Resize, ToTensor};
 use crate::runtime::{ArtifactParts, ModelArtifact};
 use crate::session::ort::OrtBackend;
 use crate::session::ort::OrtSessionConfig;
+use crate::tensor::Device;
 
 /// PaddleOCR PP-DocLayoutV3 ONNX artifact configuration.
 ///
@@ -20,6 +22,7 @@ pub struct Artifact {
     pub inputs: Inputs,
     pub outputs: Outputs,
     pub preprocess: Preprocess,
+    pub preprocess_config: PreprocessConfig,
     pub session_config: OrtSessionConfig,
 }
 
@@ -30,6 +33,7 @@ impl Default for Artifact {
             inputs: Inputs::default(),
             outputs: Outputs::default(),
             preprocess: Preprocess::default(),
+            preprocess_config: PreprocessConfig::default(),
             session_config: OrtSessionConfig::default(),
         }
     }
@@ -53,6 +57,11 @@ impl Artifact {
 
     pub fn preprocess(mut self, preprocess: Preprocess) -> Self {
         self.preprocess = preprocess;
+        self
+    }
+
+    pub fn preprocess_config(mut self, config: PreprocessConfig) -> Self {
+        self.preprocess_config = config;
         self
     }
 
@@ -128,7 +137,11 @@ impl ModelArtifact for Artifact {
         ArtifactParts {
             model_file: self.model_file,
             session_config,
-            processor: PpDocLayoutV3OnnxProcessor::new(self.inputs, self.preprocess),
+            processor: PpDocLayoutV3OnnxProcessor::new(
+                self.inputs,
+                self.preprocess,
+                self.preprocess_config,
+            ),
             decoder: PpDocLayoutV3Decoder::new(self.outputs.boxes, self.outputs.boxes_num),
         }
     }

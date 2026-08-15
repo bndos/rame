@@ -8,6 +8,8 @@ pub use opencv::OpenCvVisionBackend;
 pub use ops::{Interpolation, NormalizeImage, Resize, ResizeMode, TensorLayout, ToTensor};
 pub use output::VisionBatchOutput;
 
+use crate::preprocess::PreprocessConfig;
+
 #[cfg(feature = "opencv")]
 pub type DefaultVisionBackend = OpenCvVisionBackend;
 
@@ -19,8 +21,8 @@ pub type VisionPipelineBuilder =
     crate::preprocess::pipeline::PreprocessPipelineBuilder<DefaultVisionBackend>;
 
 #[cfg(feature = "opencv")]
-pub fn pipeline() -> VisionPipelineBuilder {
-    crate::preprocess::pipeline::PreprocessPipelineBuilder::new(DefaultVisionBackend::default())
+pub fn pipeline(config: PreprocessConfig) -> VisionPipelineBuilder {
+    crate::preprocess::pipeline::PreprocessPipelineBuilder::new(DefaultVisionBackend::from(config))
 }
 
 #[cfg(all(test, feature = "opencv"))]
@@ -31,7 +33,7 @@ mod tests {
     #[test]
     fn default_pipeline_runs_vision_ops() {
         let image = Image::from_rgb8(1, 1, vec![255, 127, 0]).unwrap();
-        let pipeline = super::pipeline()
+        let pipeline = super::pipeline(super::PreprocessConfig::default())
             .add_op(Resize::fixed_square(2, Interpolation::Cubic))
             .add_op(ToTensor::nchw().normalize(NormalizeImage::scale(NormalizeImage::INV_255)))
             .compile();

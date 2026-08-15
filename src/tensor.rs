@@ -1,7 +1,7 @@
-use std::ops::Deref;
-use std::{collections::BTreeMap, ops::DerefMut};
+use std::collections::BTreeMap;
+use std::ops::{Deref, DerefMut};
 
-use candle_core::Device;
+use candle_core::Device as CandleDevice;
 use ndarray::ArrayD;
 use thiserror::Error;
 
@@ -15,6 +15,10 @@ pub enum TensorError {
     #[error(transparent)]
     Shape(#[from] ndarray::ShapeError),
 }
+
+/// Compute device used by tensors, sessions, and preprocessing backends.
+#[derive(Debug, Clone)]
+pub struct Device(CandleDevice);
 
 /// Tensor data passed between processors, sessions, and decoders.
 #[derive(Debug, Clone)]
@@ -30,6 +34,38 @@ impl TensorMap {
     }
 }
 
+impl Default for Device {
+    fn default() -> Self {
+        Self::cpu()
+    }
+}
+
+impl Device {
+    pub fn cpu() -> Self {
+        Self(CandleDevice::Cpu)
+    }
+
+    pub fn cuda(device_id: usize) -> TensorResult<Self> {
+        CandleDevice::new_cuda(device_id)
+            .map(Self)
+            .map_err(Into::into)
+    }
+}
+
+impl From<CandleDevice> for Device {
+    fn from(device: CandleDevice) -> Self {
+        Self(device)
+    }
+}
+
+impl Deref for Device {
+    type Target = CandleDevice;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl Tensor {
     pub fn from_candle(tensor: candle_core::Tensor) -> Self {
         Self(tensor)
@@ -40,7 +76,15 @@ impl Tensor {
         S: Into<candle_core::Shape>,
         T: candle_core::WithDType,
     {
-        candle_core::Tensor::from_vec(data, shape, &Device::Cpu)
+        Self::from_vec_on_device(data, shape, &Device::cpu())
+    }
+
+    pub fn from_vec_on_device<S, T>(data: Vec<T>, shape: S, device: &Device) -> TensorResult<Self>
+    where
+        S: Into<candle_core::Shape>,
+        T: candle_core::WithDType,
+    {
+        candle_core::Tensor::from_vec(data, shape, device)
             .map(Self)
             .map_err(Into::into)
     }
