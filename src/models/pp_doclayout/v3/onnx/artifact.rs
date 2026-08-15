@@ -8,7 +8,6 @@ use crate::preprocess::vision::{Interpolation, Resize, ToTensor};
 use crate::runtime::{ArtifactParts, ModelArtifact};
 use crate::session::ort::OrtBackend;
 use crate::session::ort::OrtSessionConfig;
-use crate::tensor::Device;
 
 /// PaddleOCR PP-DocLayoutV3 ONNX artifact configuration.
 ///
