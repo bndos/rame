@@ -21,3 +21,4 @@ pub mod sources;
 pub mod tensor;
 
 pub use error::{RameError, RameResult};
+pub use tensor::Device;

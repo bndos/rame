@@ -1,3 +1,4 @@
+mod cpu;
 mod error;
 mod resize;
 mod state;

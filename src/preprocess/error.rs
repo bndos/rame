@@ -17,4 +17,10 @@ pub enum PreprocessError {
         backend: &'static str,
         message: String,
     },
+
+    #[error("{backend} preprocessing does not support `{op}`")]
+    UnsupportedBackendOp {
+        backend: &'static str,
+        op: &'static str,
+    },
 }

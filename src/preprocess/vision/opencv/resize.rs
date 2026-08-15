@@ -1,13 +1,12 @@
-use opencv::core::{Mat, Size, ToInputArray};
-use opencv::imgproc;
 use rayon::prelude::*;
 
+use super::cpu;
 use crate::RameResult;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::opencv::OpenCvVisionBackend;
 use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionData, OpenCvVisionState};
-use crate::preprocess::vision::{Interpolation, Resize, ResizeMode};
+use crate::preprocess::vision::{Resize, ResizeMode};
 
 impl PreprocessOp<OpenCvVisionBackend> for Resize {
     fn forward<'a>(
@@ -20,7 +19,7 @@ impl PreprocessOp<OpenCvVisionBackend> for Resize {
             .items
             .par_iter_mut()
             .try_for_each(|item| -> RameResult<()> {
-                item.image = OpenCvImage::Owned(self.resize_mat(&item.image)?);
+                item.image = self.resize_image(&item.image, &batch.device)?;
                 item.scale_factor = self.scale_factor(item);
                 Ok(())
             })?;
@@ -30,44 +29,24 @@ impl PreprocessOp<OpenCvVisionBackend> for Resize {
 }
 
 impl Resize {
-    fn resize_mat(&self, source: &OpenCvImage<'_>) -> RameResult<Mat> {
-        match source {
-            OpenCvImage::Borrowed(source) => self.resize_source(source),
-            OpenCvImage::Owned(source) => self.resize_source(source),
-        }
-    }
-
-    fn resize_source(&self, source: &impl ToInputArray) -> RameResult<Mat> {
-        let mut resized = Mat::default();
-        match self.mode {
-            ResizeMode::FixedSize { width, height } => {
-                imgproc::resize(
-                    source,
-                    &mut resized,
-                    Size::new(width as i32, height as i32),
-                    0.0,
-                    0.0,
-                    self.opencv_interpolation(),
-                )
-                .map_err(PreprocessError::from)?;
+    fn resize_image(
+        &self,
+        source: &OpenCvImage<'_>,
+        device: &candle_core::Device,
+    ) -> RameResult<OpenCvImage<'static>> {
+        match device {
+            candle_core::Device::Cpu => cpu::resize(self, source).map(OpenCvImage::Owned),
+            candle_core::Device::Cuda(_) => Err(PreprocessError::UnsupportedBackendOp {
+                backend: "OpenCV CUDA",
+                op: "Resize",
             }
-            ResizeMode::Scale {
-                scale_width,
-                scale_height,
-            } => {
-                imgproc::resize(
-                    source,
-                    &mut resized,
-                    Size::default(),
-                    scale_width as f64,
-                    scale_height as f64,
-                    self.opencv_interpolation(),
-                )
-                .map_err(PreprocessError::from)?;
+            .into()),
+            candle_core::Device::Metal(_) => Err(PreprocessError::UnsupportedBackendOp {
+                backend: "OpenCV Metal",
+                op: "Resize",
             }
+            .into()),
         }
-
-        Ok(resized)
     }
 
     fn scale_factor(&self, state: &OpenCvVisionState<'_>) -> [f32; 2] {
@@ -80,12 +59,6 @@ impl Resize {
                 scale_width,
                 scale_height,
             } => [scale_height, scale_width],
-        }
-    }
-
-    fn opencv_interpolation(&self) -> i32 {
-        match self.interpolation {
-            Interpolation::Cubic => imgproc::INTER_CUBIC,
         }
     }
 }

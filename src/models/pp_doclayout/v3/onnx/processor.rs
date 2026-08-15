@@ -1,6 +1,7 @@
 use crate::RameResult;
 use crate::image::ImageView;
 use crate::models::pp_doclayout::v3::onnx::{Inputs, Preprocess};
+use crate::preprocess::PreprocessConfig;
 use crate::preprocess::vision::VisionPipeline;
 use crate::runtime::{ProcessedBatch, Processor};
 use crate::tensor::TensorMap;
@@ -13,8 +14,12 @@ pub struct PpDocLayoutV3OnnxProcessor {
 }
 
 impl PpDocLayoutV3OnnxProcessor {
-    pub fn new(inputs: Inputs, preprocess: Preprocess) -> Self {
-        let pipeline = crate::preprocess::vision::pipeline()
+    pub fn new(
+        inputs: Inputs,
+        preprocess: Preprocess,
+        preprocess_config: PreprocessConfig,
+    ) -> Self {
+        let pipeline = crate::preprocess::vision::pipeline(preprocess_config)
             .add_op(preprocess.resize)
             .add_op(preprocess.tensor)
             .compile();
@@ -78,6 +83,7 @@ mod tests {
                 resize: Resize::fixed_square(2, Interpolation::Cubic),
                 ..Preprocess::default()
             },
+            crate::preprocess::PreprocessConfig::default(),
         );
 
         let image_view = image.as_view();
@@ -113,6 +119,7 @@ mod tests {
                 resize: Resize::fixed_square(2, Interpolation::Cubic),
                 ..Preprocess::default()
             },
+            crate::preprocess::PreprocessConfig::default(),
         );
 
         let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
