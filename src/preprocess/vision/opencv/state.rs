@@ -29,16 +29,10 @@ impl OpenCvVisionBackend {
 }
 
 #[doc(hidden)]
-pub struct OpenCvVisionState<'a> {
-    pub(super) image: OpenCvImage<'a>,
-    pub(super) source_width: i32,
-    pub(super) source_height: i32,
-    pub(super) scale_factor: [f32; 2],
-}
-
-#[doc(hidden)]
 pub struct OpenCvVisionBatch<'a> {
-    pub(super) items: Vec<OpenCvVisionState<'a>>,
+    pub(super) images: Vec<OpenCvImage<'a>>,
+    pub(super) source_sizes: Vec<[i32; 2]>,
+    pub(super) scale_factors: Vec<[f32; 2]>,
     pub(super) device: Device,
 }
 
@@ -98,35 +92,39 @@ impl OpenCvImage<'_> {
     }
 }
 
-impl<'a> OpenCvVisionState<'a> {
-    fn new(image: &'a ImageView<'a>) -> RameResult<Self> {
+impl OpenCvImage<'_> {
+    fn borrowed<'a>(image: &'a ImageView<'a>) -> RameResult<OpenCvImage<'a>> {
         let source_size = image.size();
 
-        let image = Mat::new_rows_cols_with_bytes::<Vec3b>(
+        Ok(Mat::new_rows_cols_with_bytes::<Vec3b>(
             source_size.height as i32,
             source_size.width as i32,
             image.data(),
         )
         .map(OpenCvImage::Borrowed)
-        .map_err(PreprocessError::from)?;
-
-        Ok(Self {
-            image,
-            source_width: source_size.width as i32,
-            source_height: source_size.height as i32,
-            scale_factor: [1.0, 1.0],
-        })
+        .map_err(PreprocessError::from)?)
     }
 }
 
 impl<'a> OpenCvVisionBatch<'a> {
     pub(super) fn new(images: &'a [ImageView<'a>], device: Device) -> RameResult<Self> {
-        let items = images
-            .iter()
-            .map(OpenCvVisionState::new)
-            .collect::<RameResult<Vec<_>>>()?;
+        let mut batch_images = Vec::with_capacity(images.len());
+        let mut source_sizes = Vec::with_capacity(images.len());
+        let mut scale_factors = Vec::with_capacity(images.len());
 
-        Ok(Self { items, device })
+        for image in images {
+            let size = image.size();
+            source_sizes.push([size.height as i32, size.width as i32]);
+            batch_images.push(OpenCvImage::borrowed(image)?);
+            scale_factors.push([1.0, 1.0]);
+        }
+
+        Ok(Self {
+            images: batch_images,
+            source_sizes,
+            scale_factors,
+            device,
+        })
     }
 }
 

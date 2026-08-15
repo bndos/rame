@@ -17,26 +17,16 @@ pub(in crate::preprocess::vision::opencv) fn to_tensor(
 }
 
 fn output(
-    batch: OpenCvVisionBatch<'_>,
     data: Vec<f32>,
     shape: [usize; 4],
+    image_shapes: Vec<f32>,
+    scale_factors: Vec<f32>,
 ) -> RameResult<VisionBatchOutput> {
-    let len = batch.items.len();
-
     let tensor = Tensor::from_vec(data, &shape).map_err(|err| PreprocessError::Backend {
         backend: "candle",
         message: err.to_string(),
     })?;
-
-    let mut image_shapes = vec![0.0; len * 2];
-    let mut scale_factors = vec![0.0; len * 2];
-    for (index, state) in batch.items.iter().enumerate() {
-        let offset = index * 2;
-        image_shapes[offset] = shape[2] as f32;
-        image_shapes[offset + 1] = shape[3] as f32;
-        scale_factors[offset] = state.scale_factor[0];
-        scale_factors[offset + 1] = state.scale_factor[1];
-    }
+    let len = shape[0];
 
     let image_shapes = metadata_tensor(image_shapes, len)?;
     let scale_factors = metadata_tensor(scale_factors, len)?;
@@ -49,22 +39,39 @@ fn output(
 }
 
 fn apply_nchw(op: &ToTensor, batch: OpenCvVisionBatch<'_>) -> RameResult<VisionBatchOutput> {
-    if batch.items.is_empty() {
-        return output(batch, Vec::new(), [0, 3, 0, 0]);
+    if batch.images.is_empty() {
+        return output(Vec::new(), [0, 3, 0, 0], Vec::new(), Vec::new());
     }
 
-    let size = batch.items[0].image.size().map_err(PreprocessError::from)?;
+    let size = batch.images[0].size().map_err(PreprocessError::from)?;
     let (height, width) = (size.height as usize, size.width as usize);
-    let len = batch.items.len();
-    let mut tensor = vec![0.0; len * 3 * height * width];
+    let len = batch.images.len();
+    let mut tensor_data = vec![0.0; len * 3 * height * width];
+    let mut image_shapes = vec![0.0; len * 2];
+    let mut scale_factors = vec![0.0; len * 2];
     let plane = height * width;
 
-    for (output, item) in tensor.chunks_mut(3 * plane).zip(batch.items.iter()) {
-        ensure_size(&item.image, size)?;
-        image_into_nchw(op, &item.image, height, width, plane, output)?;
+    for (index, (output, image)) in tensor_data
+        .chunks_mut(3 * plane)
+        .zip(batch.images.iter())
+        .enumerate()
+    {
+        ensure_size(image, size)?;
+        image_into_nchw(op, image, height, width, plane, output)?;
+
+        let metadata_offset = index * 2;
+        image_shapes[metadata_offset] = height as f32;
+        image_shapes[metadata_offset + 1] = width as f32;
+        scale_factors[metadata_offset] = batch.scale_factors[index][0];
+        scale_factors[metadata_offset + 1] = batch.scale_factors[index][1];
     }
 
-    output(batch, tensor, [len, 3, height, width])
+    output(
+        tensor_data,
+        [len, 3, height, width],
+        image_shapes,
+        scale_factors,
+    )
 }
 
 fn image_into_nchw(

@@ -5,7 +5,7 @@ use crate::RameResult;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::opencv::OpenCvVisionBackend;
-use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionData, OpenCvVisionState};
+use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionData};
 use crate::preprocess::vision::{Resize, ResizeMode};
 
 impl PreprocessOp<OpenCvVisionBackend> for Resize {
@@ -15,12 +15,16 @@ impl PreprocessOp<OpenCvVisionBackend> for Resize {
     ) -> RameResult<<OpenCvVisionBackend as PreprocessBackend>::Data<'a>> {
         let mut batch = data.into_image_batch()?;
 
+        let device = &batch.device;
+        let source_sizes = &batch.source_sizes;
         batch
-            .items
+            .images
             .par_iter_mut()
-            .try_for_each(|item| -> RameResult<()> {
-                item.image = self.resize_image(&item.image, &batch.device)?;
-                item.scale_factor = self.scale_factor(item);
+            .zip(batch.scale_factors.par_iter_mut())
+            .enumerate()
+            .try_for_each(|(index, (image, scale_factor))| -> RameResult<()> {
+                *image = self.resize_image(image, device)?;
+                *scale_factor = self.scale_factor(source_sizes[index]);
                 Ok(())
             })?;
 
@@ -49,11 +53,12 @@ impl Resize {
         }
     }
 
-    fn scale_factor(&self, state: &OpenCvVisionState<'_>) -> [f32; 2] {
+    fn scale_factor(&self, source_size: [i32; 2]) -> [f32; 2] {
+        let [source_height, source_width] = source_size;
         match self.mode {
             ResizeMode::FixedSize { width, height } => [
-                height as f32 / state.source_height as f32,
-                width as f32 / state.source_width as f32,
+                height as f32 / source_height as f32,
+                width as f32 / source_width as f32,
             ],
             ResizeMode::Scale {
                 scale_width,
