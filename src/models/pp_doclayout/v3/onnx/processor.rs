@@ -98,7 +98,7 @@ mod tests {
 
         assert_eq!(processed.inputs["image"].dtype(), DType::F32);
         assert_eq!(image.shape(), &[1, 3, 2, 2]);
-        assert_eq!(image[[0, 0, 0, 0]], 255.0);
+        assert_eq!(image[[0, 0, 0, 0]], 1.0);
         assert_eq!(im_shape.shape(), &[1, 2]);
         assert_eq!(im_shape[[0, 0]], 2.0);
         assert_eq!(im_shape[[0, 1]], 2.0);
@@ -133,8 +133,8 @@ mod tests {
 
         assert_eq!(processed.inputs["image"].dtype(), DType::F32);
         assert_eq!(image.shape(), &[2, 3, 2, 2]);
-        assert_eq!(image[[0, 0, 0, 0]], 255.0);
-        assert_eq!(image[[1, 2, 0, 0]], 255.0);
+        assert_eq!(image[[0, 0, 0, 0]], 1.0);
+        assert_eq!(image[[1, 2, 0, 0]], 1.0);
         assert_eq!(im_shape.shape(), &[2, 2]);
         assert_eq!(im_shape[[0, 0]], 2.0);
         assert_eq!(im_shape[[1, 1]], 2.0);

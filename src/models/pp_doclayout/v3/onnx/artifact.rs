@@ -4,7 +4,7 @@ use crate::models::pp_doclayout::v3::decoder::PpDocLayoutV3Decoder;
 use crate::models::pp_doclayout::v3::model::PpDocLayoutV3;
 use crate::models::pp_doclayout::v3::onnx::processor::PpDocLayoutV3OnnxProcessor;
 use crate::preprocess::PreprocessConfig;
-use crate::preprocess::vision::{Interpolation, Resize, ToTensor};
+use crate::preprocess::vision::{Interpolation, NormalizeImage, Resize, ToTensor};
 use crate::runtime::{ArtifactParts, ModelArtifact};
 use crate::session::ort::OrtBackend;
 use crate::session::ort::OrtSessionConfig;
@@ -13,8 +13,11 @@ use crate::session::ort::OrtSessionConfig;
 ///
 /// The official ONNX artifact uses `inference.onnx`, Paddle-style inputs
 /// `image`, `im_shape`, `scale_factor`, and fixed 800x800 preprocessing with
-/// an unscaled NCHW f32 tensor.
-/// Source: <https://huggingface.co/PaddlePaddle/PP-DocLayoutV3_onnx/blob/main/inference.yml>
+/// PaddleX object-detection scale-only normalization.
+///
+/// Sources:
+/// - PP-DocLayoutV3 transform config: <https://github.com/PaddlePaddle/PaddleX/blob/develop/paddlex/repo_apis/PaddleDetection_api/configs/PP-DocLayoutV3.yaml>
+/// - PaddleX `NormalizeImage` defaults `is_scale` to `true`, making `norm_type: none` scale by `1 / 255`: <https://github.com/PaddlePaddle/PaddleX/blob/develop/paddlex/inference/models/object_detection/predictor.py>
 #[derive(Debug, Clone)]
 pub struct Artifact {
     pub model_file: PathBuf,
@@ -114,7 +117,7 @@ impl Default for Preprocess {
     fn default() -> Self {
         Self {
             resize: Resize::fixed_square(800, Interpolation::Cubic),
-            tensor: ToTensor::nchw(),
+            tensor: ToTensor::nchw().normalize(NormalizeImage::scale(NormalizeImage::INV_255)),
         }
     }
 }
