@@ -22,7 +22,7 @@ pub struct Device(CandleDevice);
 
 /// Tensor data passed between processors, sessions, and decoders.
 #[derive(Debug, Clone)]
-pub struct Tensor(candle_core::Tensor);
+pub struct Tensor(pub(super) candle_core::Tensor);
 
 /// Named tensor collection used at model execution boundaries.
 #[derive(Debug, Clone, Default)]
@@ -52,12 +52,6 @@ impl Device {
     }
 }
 
-impl From<CandleDevice> for Device {
-    fn from(device: CandleDevice) -> Self {
-        Self(device)
-    }
-}
-
 impl Deref for Device {
     type Target = CandleDevice;
 
@@ -67,10 +61,6 @@ impl Deref for Device {
 }
 
 impl Tensor {
-    pub fn from_candle(tensor: candle_core::Tensor) -> Self {
-        Self(tensor)
-    }
-
     pub fn from_vec<S, T>(data: Vec<T>, shape: S) -> TensorResult<Self>
     where
         S: Into<candle_core::Shape>,
