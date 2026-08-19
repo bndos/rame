@@ -10,6 +10,7 @@
 )]
 
 pub mod error;
+pub mod geometry;
 pub mod image;
 mod instrumentation;
 pub mod layout;

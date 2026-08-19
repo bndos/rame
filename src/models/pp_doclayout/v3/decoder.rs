@@ -1,7 +1,8 @@
 use ndarray::ArrayView2;
 
 use crate::RameResult;
-use crate::layout::{Geometry, LayoutRegion, LayoutResult, Rect};
+use crate::geometry::Rect;
+use crate::layout::{Geometry, LayoutRegion, LayoutResult};
 use crate::models::pp_doclayout::boxes::BatchedBoxes;
 use crate::models::pp_doclayout::v3::labels::label_for_class_id;
 use crate::runtime::{DecodeBatch, Decoder};
@@ -80,7 +81,8 @@ fn decode_boxes(boxes: ArrayView2<'_, f32>) -> LayoutResult {
 mod tests {
     use ndarray::{Array1, Array2};
 
-    use crate::layout::{Geometry, LayoutLabel, Rect};
+    use crate::geometry::Rect;
+    use crate::layout::{Geometry, LayoutLabel};
     use crate::models::pp_doclayout::v3::decoder::PpDocLayoutV3Decoder;
     use crate::runtime::{DecodeBatch, Decoder};
     use crate::tensor::{Tensor, TensorMap};
