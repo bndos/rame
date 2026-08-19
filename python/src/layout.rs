@@ -57,9 +57,10 @@ impl From<Geometry> for PyGeometry {
                 kind: "rect".to_string(),
                 coordinates: vec![rect.x_min, rect.y_min, rect.x_max, rect.y_max],
             },
-            Geometry::Polygon(points) => Self {
+            Geometry::Polygon(polygon) => Self {
                 kind: "polygon".to_string(),
-                coordinates: points
+                coordinates: polygon
+                    .points
                     .into_iter()
                     .flat_map(|point| [point.x, point.y])
                     .collect(),

@@ -1,6 +1,7 @@
 use crate::RameResult;
 use crate::image::{Image, ImageView};
 use crate::layout::LayoutResult;
+use crate::runtime::expect_one;
 
 pub trait LayoutModel {
     fn detect_layout_many_views<'a>(
@@ -15,15 +16,7 @@ pub trait LayoutModel {
 
     fn detect_layout_view<'a>(&mut self, image: ImageView<'a>) -> RameResult<LayoutResult> {
         let results = self.detect_layout_many_views(std::slice::from_ref(&image))?;
-        let [result]: [_; 1] = results.try_into().map_err(|results: Vec<LayoutResult>| {
-            crate::RameError::InvalidBatchLength {
-                stage: "layout output",
-                expected: 1,
-                actual: results.len(),
-            }
-        })?;
-
-        Ok(result)
+        expect_one(results, "layout output")
     }
 
     fn detect_layout(&mut self, image: &Image) -> RameResult<LayoutResult> {

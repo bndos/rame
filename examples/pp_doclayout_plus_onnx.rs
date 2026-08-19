@@ -66,12 +66,12 @@ impl DetectionRow {
                 x_max: format!("{:.1}", rect.x_max),
                 y_max: format!("{:.1}", rect.y_max),
             },
-            Geometry::Polygon(points) => Self {
+            Geometry::Polygon(polygon) => Self {
                 index: index + 1,
                 label: format!("{:?}", region.label),
                 score: format!("{:.3}", region.score),
                 x_min: "polygon".to_string(),
-                y_min: points.len().to_string(),
+                y_min: polygon.points.len().to_string(),
                 x_max: String::new(),
                 y_max: String::new(),
             },
