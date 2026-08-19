@@ -30,3 +30,15 @@ impl Rect {
         }
     }
 }
+
+/// A polygon in image coordinates.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Polygon {
+    pub points: Vec<Point>,
+}
+
+impl Polygon {
+    pub fn new(points: Vec<Point>) -> Self {
+        Self { points }
+    }
+}
