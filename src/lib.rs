@@ -15,6 +15,7 @@ pub mod image;
 mod instrumentation;
 pub mod layout;
 pub mod models;
+pub mod ocr;
 pub mod preprocess;
 pub mod runtime;
 pub mod session;
