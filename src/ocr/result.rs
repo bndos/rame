@@ -40,21 +40,39 @@ pub struct TextDetection {
     pub score: f32,
 }
 
-/// Result of text recognition on one cropped textline image.
+/// Recognized text for one cropped textline image.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextRecognitionResult {
-    pub recognition: TextRecognition,
+    pub text: String,
+    pub score: f32,
 }
 
 impl TextRecognitionResult {
-    pub fn new(recognition: TextRecognition) -> Self {
-        Self { recognition }
+    pub fn new(text: impl Into<String>, score: f32) -> Self {
+        Self {
+            text: text.into(),
+            score,
+        }
     }
 }
 
-/// Recognized text for one cropped textline image.
+/// Result of textline orientation classification on one cropped textline image.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextRecognition {
-    pub text: String,
+pub struct TextLineOrientationResult {
+    pub orientation: TextLineOrientation,
     pub score: f32,
+}
+
+impl TextLineOrientationResult {
+    pub fn new(orientation: TextLineOrientation, score: f32) -> Self {
+        Self { orientation, score }
+    }
+}
+
+/// Orientation prediction for a cropped textline image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextLineOrientation {
+    Deg0,
+    Deg180,
+    Unknown(i32),
 }
