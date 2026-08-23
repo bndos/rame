@@ -1,153 +1,98 @@
-use std::marker::PhantomData;
-
-use crate::RameError;
 use crate::RameResult;
-use crate::runtime::{DecodeBatch, Decoder, Processor};
-use crate::session::InferSession;
+use crate::runtime::PipelineStep;
 
-/// Typed composition of processing, inference, and decoding stages.
-pub struct InferencePipeline<M, P, S, D> {
-    architecture: PhantomData<M>,
-    processor: P,
-    session: S,
-    decoder: D,
+/// Typed runtime pipeline composed from one or more steps.
+pub struct Pipeline<S> {
+    step: S,
 }
 
-impl<M, P, S, D> InferencePipeline<M, P, S, D> {
-    pub fn new(_architecture: M, processor: P, session: S, decoder: D) -> Self {
-        Self {
-            architecture: PhantomData,
-            processor,
-            session,
-            decoder,
-        }
+impl<S> Pipeline<S> {
+    pub fn new(step: S) -> Self {
+        Self { step }
+    }
+
+    pub fn then<N>(self, next: N) -> Pipeline<Then<S, N>> {
+        Pipeline::new(Then {
+            first: self.step,
+            second: next,
+        })
+    }
+
+    pub fn run<Input>(&mut self, input: Input) -> RameResult<S::Output>
+    where
+        S: PipelineStep<Input>,
+    {
+        crate::instrumentation::time_stage!("rame_pipeline_duration", self.step.execute(input))
     }
 }
 
-impl<M, P, S, D> InferencePipeline<M, P, S, D>
+impl<Input, S> PipelineStep<Input> for Pipeline<S>
 where
-    P: Processor,
-    S: InferSession,
-    D: Decoder<Context = P::Context>,
+    S: PipelineStep<Input>,
 {
-    pub fn run_many<'a>(&mut self, sources: &'a [P::Source<'a>]) -> RameResult<Vec<D::Output>> {
-        crate::instrumentation::time_stage!("rame_pipeline_duration", self.run_many_inner(sources))
+    type Output = S::Output;
+
+    fn execute(&mut self, input: Input) -> RameResult<Self::Output> {
+        self.step.execute(input)
     }
+}
 
-    fn run_many_inner<'a>(&mut self, sources: &'a [P::Source<'a>]) -> RameResult<Vec<D::Output>> {
-        if sources.is_empty() {
-            return Ok(Vec::new());
-        }
+/// Two pipeline steps executed sequentially.
+pub struct Then<A, B> {
+    first: A,
+    second: B,
+}
 
-        let source_len = sources.len();
-        let processed = crate::instrumentation::time_stage!(
-            "rame_pipeline_preprocess_duration",
-            self.processor.process_many(sources)
-        )?;
-        if processed.len != source_len {
-            return Err(RameError::InvalidBatchLength {
-                stage: "processor output",
-                expected: source_len,
-                actual: processed.len,
-            });
-        }
-        if processed.contexts.len() != processed.len {
-            return Err(RameError::InvalidBatchLength {
-                stage: "processor contexts",
-                expected: processed.len,
-                actual: processed.contexts.len(),
-            });
-        }
+impl<Input, A, B> PipelineStep<Input> for Then<A, B>
+where
+    A: PipelineStep<Input>,
+    B: PipelineStep<A::Output>,
+{
+    type Output = B::Output;
 
-        let outputs = crate::instrumentation::time_stage!(
-            "rame_pipeline_inference_duration",
-            self.session.run(processed.inputs)
-        )?;
-        let decoded = crate::instrumentation::time_stage!(
-            "rame_pipeline_decode_duration",
-            self.decoder.decode_batch(DecodeBatch {
-                len: processed.len,
-                outputs: &outputs,
-                contexts: &processed.contexts,
-            })
-        )?;
-        if decoded.len() != processed.len {
-            return Err(RameError::InvalidBatchLength {
-                stage: "decoder output",
-                expected: processed.len,
-                actual: decoded.len(),
-            });
-        }
-
-        Ok(decoded)
+    fn execute(&mut self, input: Input) -> RameResult<Self::Output> {
+        let intermediate = self.first.execute(input)?;
+        self.second.execute(intermediate)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::RameResult;
-    use crate::runtime::{DecodeBatch, Decoder, InferencePipeline, ProcessedBatch, Processor};
-    use crate::session::InferSession;
-    use crate::tensor::TensorMap;
+    use crate::runtime::{Pipeline, PipelineStep};
 
-    #[derive(Debug, Clone, Copy)]
-    struct TestArchitecture;
+    struct AddOne;
 
-    struct EchoProcessor;
+    impl PipelineStep<u32> for AddOne {
+        type Output = u64;
 
-    impl Processor for EchoProcessor {
-        type Source<'a> = i32;
-        type Context = i32;
-
-        fn process_many<'a>(
-            &self,
-            sources: &'a [Self::Source<'a>],
-        ) -> RameResult<ProcessedBatch<i32>> {
-            Ok(ProcessedBatch {
-                len: sources.len(),
-                inputs: TensorMap::new(),
-                contexts: sources.to_vec(),
-            })
+        fn execute(&mut self, input: u32) -> RameResult<Self::Output> {
+            Ok(u64::from(input) + 1)
         }
     }
 
-    struct CountingSession {
-        runs: usize,
-    }
+    struct ToString;
 
-    impl InferSession for CountingSession {
-        fn run(&mut self, inputs: TensorMap) -> RameResult<TensorMap> {
-            self.runs += 1;
-            Ok(inputs)
-        }
-    }
+    impl PipelineStep<u64> for ToString {
+        type Output = String;
 
-    struct EchoDecoder;
-
-    impl Decoder for EchoDecoder {
-        type Output = i32;
-        type Context = i32;
-
-        fn decode_batch(
-            &self,
-            batch: DecodeBatch<'_, Self::Context>,
-        ) -> RameResult<Vec<Self::Output>> {
-            Ok(batch.contexts.iter().map(|value| value * 2).collect())
+        fn execute(&mut self, input: u64) -> RameResult<Self::Output> {
+            Ok(input.to_string())
         }
     }
 
     #[test]
-    fn runs_batch_through_session_once() {
-        let mut pipeline = InferencePipeline::new(
-            TestArchitecture,
-            EchoProcessor,
-            CountingSession { runs: 0 },
-            EchoDecoder,
-        );
+    fn composes_steps_with_different_types() {
+        let mut pipeline = Pipeline::new(AddOne).then(ToString);
 
-        let outputs = pipeline.run_many(&[1, 2, 3]).unwrap();
+        assert_eq!(pipeline.run(41).unwrap(), "42");
+    }
 
-        assert_eq!(outputs, vec![2, 4, 6]);
-        assert_eq!(pipeline.session.runs, 1);
+    #[test]
+    fn composes_nested_pipelines() {
+        let stringify = Pipeline::new(ToString);
+        let mut pipeline = Pipeline::new(AddOne).then(stringify);
+
+        assert_eq!(pipeline.run(41).unwrap(), "42");
     }
 }

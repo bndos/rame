@@ -1,5 +1,5 @@
 use crate::RameResult;
-use crate::runtime::{InferencePipeline, ModelArchitecture, ModelArtifact};
+use crate::runtime::{ModelArchitecture, ModelArtifact, ModelPipeline};
 use crate::session::SessionBackend;
 use crate::sources::ResolveModelSource;
 
@@ -14,7 +14,7 @@ pub struct ModelBuilder<M, S = Missing, A = Missing> {
     artifact: A,
 }
 
-pub type BuiltModel<M, A> = InferencePipeline<
+pub type BuiltModel<M, A> = ModelPipeline<
     M,
     <A as ModelArtifact>::Processor,
     <<A as ModelArtifact>::Backend as SessionBackend>::Session,
@@ -64,7 +64,7 @@ where
         let model_path = source.join_artifact_path(&parts.model_file)?;
         let session = A::Backend::load(&model_path, parts.session_config)?;
 
-        Ok(InferencePipeline::new(
+        Ok(ModelPipeline::new(
             self.architecture,
             parts.processor,
             session,
