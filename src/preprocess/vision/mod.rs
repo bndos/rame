@@ -8,6 +8,7 @@ pub use opencv::OpenCvVisionBackend;
 pub use ops::{Interpolation, NormalizeImage, Resize, ResizeMode, TensorLayout, ToTensor};
 pub use output::VisionBatchOutput;
 
+#[cfg(feature = "opencv")]
 use crate::preprocess::PreprocessConfig;
 
 #[cfg(feature = "opencv")]
