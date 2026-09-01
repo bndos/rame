@@ -37,10 +37,6 @@ impl Decoder for PpDocLayoutPlusDecoder {
     type Context = ();
 
     fn decode_batch(&self, batch: DecodeBatch<'_, Self::Context>) -> RameResult<Vec<Self::Output>> {
-        if batch.len == 0 {
-            return Ok(Vec::new());
-        }
-
         let batched_boxes = BatchedBoxes::from_outputs(
             batch.outputs,
             &self.boxes_output_name,
@@ -138,7 +134,6 @@ mod tests {
         let decoder = PpDocLayoutPlusDecoder::new("boxes", "boxes_num");
         let results = decoder
             .decode_batch(DecodeBatch {
-                len: 2,
                 outputs: &outputs,
                 contexts: &[(), ()],
             })
@@ -169,7 +164,6 @@ mod tests {
         let decoder = PpDocLayoutPlusDecoder::new("boxes", "boxes_num");
         let err = decoder
             .decode_batch(DecodeBatch {
-                len: 2,
                 outputs: &outputs,
                 contexts: &[(), ()],
             })

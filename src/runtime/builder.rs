@@ -1,6 +1,5 @@
 use crate::RameResult;
-use crate::runtime::{ModelArchitecture, ModelArtifact, ModelPipeline};
-use crate::session::SessionBackend;
+use crate::runtime::{ModelArchitecture, ModelLoader};
 use crate::sources::ResolveModelSource;
 
 #[derive(Debug, Clone, Copy)]
@@ -14,12 +13,7 @@ pub struct ModelBuilder<M, S = Missing, A = Missing> {
     artifact: A,
 }
 
-pub type BuiltModel<M, A> = ModelPipeline<
-    M,
-    <A as ModelArtifact>::Processor,
-    <<A as ModelArtifact>::Backend as SessionBackend>::Session,
-    <A as ModelArtifact>::Decoder,
->;
+pub type BuiltModel<M, A> = <A as ModelLoader<M>>::Runner;
 
 impl<M> ModelBuilder<M> {
     pub fn new(architecture: M) -> Self {
@@ -56,19 +50,74 @@ impl<M, S, A> ModelBuilder<M, S, A>
 where
     M: ModelArchitecture,
     S: ResolveModelSource,
-    A: ModelArtifact<Architecture = M>,
+    A: ModelLoader<M>,
 {
     pub fn build(self) -> RameResult<BuiltModel<M, A>> {
         let source = self.source.resolve_model_source()?;
-        let parts = self.artifact.into_parts();
-        let model_path = source.join_artifact_path(&parts.model_file)?;
-        let session = A::Backend::load(&model_path, parts.session_config)?;
+        self.artifact.load(self.architecture, source)
+    }
+}
 
-        Ok(ModelPipeline::new(
-            self.architecture,
-            parts.processor,
-            session,
-            parts.decoder,
-        ))
+#[cfg(test)]
+mod tests {
+    use crate::RameResult;
+    use crate::runtime::{ModelArchitecture, ModelLoader, ModelRunner};
+    use crate::sources::ResolvedModelSource;
+
+    use super::ModelBuilder;
+
+    #[derive(Debug, Clone, Copy)]
+    struct TestArchitecture;
+
+    impl ModelArchitecture for TestArchitecture {
+        type Input<'a> = i32;
+        type Output = i32;
+    }
+
+    struct RepeatedRunner {
+        iterations: usize,
+    }
+
+    impl ModelRunner for RepeatedRunner {
+        type Architecture = TestArchitecture;
+
+        fn run_many(&mut self, inputs: &[i32]) -> RameResult<Vec<i32>> {
+            let mut outputs = inputs.to_vec();
+            for _ in 0..self.iterations {
+                for output in &mut outputs {
+                    *output += 1;
+                }
+            }
+            Ok(outputs)
+        }
+    }
+
+    struct RepeatedLoader {
+        iterations: usize,
+    }
+
+    impl ModelLoader<TestArchitecture> for RepeatedLoader {
+        type Runner = RepeatedRunner;
+
+        fn load(
+            self,
+            _architecture: TestArchitecture,
+            _source: ResolvedModelSource,
+        ) -> RameResult<Self::Runner> {
+            Ok(RepeatedRunner {
+                iterations: self.iterations,
+            })
+        }
+    }
+
+    #[test]
+    fn builds_a_custom_runner_with_repeated_control_flow() {
+        let mut runner = ModelBuilder::new(TestArchitecture)
+            .source(".")
+            .artifact(RepeatedLoader { iterations: 3 })
+            .build()
+            .unwrap();
+
+        assert_eq!(runner.run_many(&[1, 2]).unwrap(), vec![4, 5]);
     }
 }

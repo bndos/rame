@@ -1,7 +1,7 @@
 use crate::RameResult;
 use crate::image::ImageView;
 use crate::layout::{LayoutModel, LayoutResult};
-use crate::runtime::{Decoder, ModelArchitecture, ModelBuilder, ModelPipeline, Processor};
+use crate::runtime::{Decoder, ModelArchitecture, ModelBuilder, Processor, StandardModelRunner};
 use crate::session::InferSession;
 
 /// PP-DocLayout V3 semantic model.
@@ -15,10 +15,11 @@ impl PpDocLayoutV3 {
 }
 
 impl ModelArchitecture for PpDocLayoutV3 {
+    type Input<'a> = ImageView<'a>;
     type Output = LayoutResult;
 }
 
-impl<P, S, D> LayoutModel for ModelPipeline<PpDocLayoutV3, P, S, D>
+impl<P, S, D> LayoutModel for StandardModelRunner<PpDocLayoutV3, P, S, D>
 where
     P: for<'a> Processor<Source<'a> = ImageView<'a>>,
     S: InferSession,

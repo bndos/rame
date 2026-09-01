@@ -20,16 +20,16 @@ benchmarking, and eventually serving.
 ## Architecture
 
 ```text
-source -> artifact -> processor -> session -> decoder -> result
+source -> loader -> runner -> result
 ```
 
 - **source**: resolves model files (HuggingFace or local path).
-- **artifact**: export-specific recipe: model file, tensor names, preprocessing,
-  backend session configuration, processor, and decoder.
+- **loader**: binds an exported package and backend to a semantic model and
+  constructs its runner.
+- **runner**: owns the loaded resources and execution flow for a model.
 - **processor**: converts user inputs into named backend tensors.
 - **session**: runs the inference backend. ONNX Runtime is the first backend.
 - **decoder**: converts backend output tensors into typed model results.
-- **pipeline**: runtime composition of processor, session, and decoder.
 
 ## Rust Usage
 

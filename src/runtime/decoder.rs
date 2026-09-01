@@ -4,7 +4,6 @@ use crate::tensor::TensorMap;
 
 /// Batched inference outputs plus per-item preprocessing metadata.
 pub struct DecodeBatch<'a, C> {
-    pub len: usize,
     pub outputs: &'a TensorMap,
     pub contexts: &'a [C],
 }
@@ -21,7 +20,6 @@ pub trait Decoder {
 
     fn decode(&self, outputs: &TensorMap, context: &Self::Context) -> RameResult<Self::Output> {
         let decoded = self.decode_batch(DecodeBatch {
-            len: 1,
             outputs,
             contexts: std::slice::from_ref(context),
         })?;
