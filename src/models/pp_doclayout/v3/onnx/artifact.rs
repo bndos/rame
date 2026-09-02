@@ -1,13 +1,15 @@
 use std::path::PathBuf;
 
+use crate::RameResult;
 use crate::models::pp_doclayout::v3::decoder::PpDocLayoutV3Decoder;
 use crate::models::pp_doclayout::v3::model::PpDocLayoutV3;
 use crate::models::pp_doclayout::v3::onnx::processor::PpDocLayoutV3OnnxProcessor;
 use crate::preprocess::PreprocessConfig;
 use crate::preprocess::vision::{Interpolation, NormalizeImage, Resize, ToTensor};
-use crate::runtime::{ArtifactParts, ModelArtifact};
-use crate::session::ort::OrtBackend;
-use crate::session::ort::OrtSessionConfig;
+use crate::runtime::{ModelLoader, StandardModelRunner};
+use crate::session::SessionBackend;
+use crate::session::ort::{OrtBackend, OrtSession, OrtSessionConfig};
+use crate::sources::ResolvedModelSource;
 
 /// PaddleOCR PP-DocLayoutV3 ONNX artifact configuration.
 ///
@@ -122,29 +124,31 @@ impl Default for Preprocess {
     }
 }
 
-impl ModelArtifact for Artifact {
-    type Architecture = PpDocLayoutV3;
-    type Backend = OrtBackend;
-    type Processor = PpDocLayoutV3OnnxProcessor;
-    type Decoder = PpDocLayoutV3Decoder;
+impl ModelLoader<PpDocLayoutV3> for Artifact {
+    type Runner = StandardModelRunner<
+        PpDocLayoutV3,
+        PpDocLayoutV3OnnxProcessor,
+        OrtSession,
+        PpDocLayoutV3Decoder,
+    >;
 
-    fn into_parts(
+    fn load(
         self,
-    ) -> ArtifactParts<OrtSessionConfig, PpDocLayoutV3OnnxProcessor, PpDocLayoutV3Decoder> {
+        architecture: PpDocLayoutV3,
+        source: ResolvedModelSource,
+    ) -> RameResult<Self::Runner> {
         let session_config = self
             .session_config
             .output(self.outputs.boxes.clone())
             .output(self.outputs.boxes_num.clone());
+        let model_path = source.join_artifact_path(&self.model_file)?;
+        let session = OrtBackend::load(&model_path, session_config)?;
 
-        ArtifactParts {
-            model_file: self.model_file,
-            session_config,
-            processor: PpDocLayoutV3OnnxProcessor::new(
-                self.inputs,
-                self.preprocess,
-                self.preprocess_config,
-            ),
-            decoder: PpDocLayoutV3Decoder::new(self.outputs.boxes, self.outputs.boxes_num),
-        }
+        Ok(StandardModelRunner::new(
+            architecture,
+            PpDocLayoutV3OnnxProcessor::new(self.inputs, self.preprocess, self.preprocess_config),
+            session,
+            PpDocLayoutV3Decoder::new(self.outputs.boxes, self.outputs.boxes_num),
+        ))
     }
 }

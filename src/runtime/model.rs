@@ -1,157 +1,32 @@
 use std::marker::PhantomData;
 
-use crate::RameError;
-use crate::RameResult;
-use crate::runtime::{DecodeBatch, Decoder, Pipeline, PipelineStep, ProcessedBatch, Processor};
+use crate::runtime::{DecodeBatch, Decoder, ModelArchitecture, Processor};
 use crate::session::InferSession;
-use crate::tensor::TensorMap;
+use crate::{RameError, RameResult};
 
-/// Preprocessing step for one model architecture.
-struct ProcessStep<M, P> {
+/// Executes one loaded semantic model.
+///
+/// A runner owns the runtime resources and control flow needed to complete a
+/// batch. Autoregressive models may implement this trait with a stateful loop.
+/// single-session models can use [`StandardModelRunner`].
+pub trait ModelRunner {
+    type Architecture: ModelArchitecture;
+
+    fn run_many<'a>(
+        &mut self,
+        inputs: &'a [<Self::Architecture as ModelArchitecture>::Input<'a>],
+    ) -> RameResult<Vec<<Self::Architecture as ModelArchitecture>::Output>>;
+}
+
+/// Standard processor -> session -> decoder model runner.
+pub struct StandardModelRunner<M, P, S, D> {
     architecture: PhantomData<M>,
     processor: P,
-}
-
-impl<M, P> ProcessStep<M, P> {
-    pub fn new(_architecture: M, processor: P) -> Self {
-        Self {
-            architecture: PhantomData,
-            processor,
-        }
-    }
-}
-
-impl<'a, M, P> PipelineStep<&'a [P::Source<'a>]> for ProcessStep<M, P>
-where
-    P: Processor,
-{
-    type Output = ProcessedBatch<P::Context>;
-
-    fn execute(&mut self, sources: &'a [P::Source<'a>]) -> RameResult<Self::Output> {
-        if sources.is_empty() {
-            return Ok(ProcessedBatch {
-                len: 0,
-                inputs: TensorMap::new(),
-                contexts: Vec::new(),
-            });
-        }
-
-        let processed = crate::instrumentation::time_stage!(
-            "rame_pipeline_preprocess_duration",
-            self.processor.process_many(sources)
-        )?;
-        if processed.len != sources.len() {
-            return Err(RameError::InvalidBatchLength {
-                stage: "processor output",
-                expected: sources.len(),
-                actual: processed.len,
-            });
-        }
-        if processed.contexts.len() != processed.len {
-            return Err(RameError::InvalidBatchLength {
-                stage: "processor contexts",
-                expected: processed.len,
-                actual: processed.contexts.len(),
-            });
-        }
-        Ok(processed)
-    }
-}
-
-/// Inference outputs paired with the contexts required for decoding.
-struct InferredBatch<C> {
-    len: usize,
-    outputs: TensorMap,
-    contexts: Vec<C>,
-}
-
-/// Model-session execution step.
-struct InferenceStep<S> {
     session: S,
-}
-
-impl<S> InferenceStep<S> {
-    pub fn new(session: S) -> Self {
-        Self { session }
-    }
-}
-
-impl<C, S> PipelineStep<ProcessedBatch<C>> for InferenceStep<S>
-where
-    S: InferSession,
-{
-    type Output = InferredBatch<C>;
-
-    fn execute(&mut self, batch: ProcessedBatch<C>) -> RameResult<Self::Output> {
-        let outputs = if batch.len == 0 {
-            TensorMap::new()
-        } else {
-            crate::instrumentation::time_stage!(
-                "rame_pipeline_inference_duration",
-                self.session.run(batch.inputs)
-            )?
-        };
-        Ok(InferredBatch {
-            len: batch.len,
-            outputs,
-            contexts: batch.contexts,
-        })
-    }
-}
-
-/// Typed output-decoding step.
-struct DecodeStep<D> {
     decoder: D,
 }
 
-impl<D> DecodeStep<D> {
-    pub fn new(decoder: D) -> Self {
-        Self { decoder }
-    }
-}
-
-impl<C, D> PipelineStep<InferredBatch<C>> for DecodeStep<D>
-where
-    D: Decoder<Context = C>,
-{
-    type Output = Vec<D::Output>;
-
-    fn execute(&mut self, batch: InferredBatch<C>) -> RameResult<Self::Output> {
-        if batch.len == 0 {
-            return Ok(Vec::new());
-        }
-
-        let decoded = crate::instrumentation::time_stage!(
-            "rame_pipeline_decode_duration",
-            self.decoder.decode_batch(DecodeBatch {
-                len: batch.len,
-                outputs: &batch.outputs,
-                contexts: &batch.contexts,
-            })
-        )?;
-        if decoded.len() != batch.len {
-            return Err(RameError::InvalidBatchLength {
-                stage: "decoder output",
-                expected: batch.len,
-                actual: decoded.len(),
-            });
-        }
-        Ok(decoded)
-    }
-}
-
-type ModelPipelineInner<M, P, S, D> = Pipeline<
-    crate::runtime::pipeline::Then<
-        crate::runtime::pipeline::Then<ProcessStep<M, P>, InferenceStep<S>>,
-        DecodeStep<D>,
-    >,
->;
-
-pub struct ModelPipeline<M, P, S, D> {
-    inner: ModelPipelineInner<M, P, S, D>,
-}
-
-impl<M, P, S, D> ModelPipeline<M, P, S, D>
+impl<M, P, S, D> StandardModelRunner<M, P, S, D>
 where
     P: Processor,
     S: InferSession,
@@ -159,27 +34,76 @@ where
 {
     pub fn new(_architecture: M, processor: P, session: S, decoder: D) -> Self {
         Self {
-            inner: Pipeline::new(ProcessStep::new(_architecture, processor))
-                .then(InferenceStep::new(session))
-                .then(DecodeStep::new(decoder)),
+            architecture: PhantomData,
+            processor,
+            session,
+            decoder,
         }
     }
 
     pub fn run<'a>(&mut self, sources: &'a [P::Source<'a>]) -> RameResult<Vec<D::Output>> {
-        self.inner.run(sources)
+        crate::instrumentation::time_stage!(
+            "rame_model_runner_duration",
+            (|| {
+                if sources.is_empty() {
+                    return Ok(Vec::new());
+                }
+
+                let processed = crate::instrumentation::time_stage!(
+                    "rame_model_runner_preprocess_duration",
+                    self.processor.process_many(sources)
+                )?;
+                if processed.len != sources.len() {
+                    return Err(RameError::InvalidBatchLength {
+                        stage: "processor output",
+                        expected: sources.len(),
+                        actual: processed.len,
+                    });
+                }
+                if processed.contexts.len() != processed.len {
+                    return Err(RameError::InvalidBatchLength {
+                        stage: "processor contexts",
+                        expected: processed.len,
+                        actual: processed.contexts.len(),
+                    });
+                }
+
+                let outputs = crate::instrumentation::time_stage!(
+                    "rame_model_runner_inference_duration",
+                    self.session.run(processed.inputs)
+                )?;
+                let decoded = crate::instrumentation::time_stage!(
+                    "rame_model_runner_decode_duration",
+                    self.decoder.decode_batch(DecodeBatch {
+                        outputs: &outputs,
+                        contexts: &processed.contexts,
+                    })
+                )?;
+                if decoded.len() != processed.len {
+                    return Err(RameError::InvalidBatchLength {
+                        stage: "decoder output",
+                        expected: processed.len,
+                        actual: decoded.len(),
+                    });
+                }
+
+                Ok(decoded)
+            })()
+        )
     }
 }
 
-impl<'a, M, P, S, D> PipelineStep<&'a [P::Source<'a>]> for ModelPipeline<M, P, S, D>
+impl<M, P, S, D> ModelRunner for StandardModelRunner<M, P, S, D>
 where
-    P: Processor,
+    M: ModelArchitecture,
+    P: for<'a> Processor<Source<'a> = M::Input<'a>>,
     S: InferSession,
-    D: Decoder<Context = P::Context>,
+    D: Decoder<Output = M::Output, Context = P::Context>,
 {
-    type Output = Vec<D::Output>;
+    type Architecture = M;
 
-    fn execute(&mut self, sources: &'a [P::Source<'a>]) -> RameResult<Self::Output> {
-        self.run(sources)
+    fn run_many<'a>(&mut self, inputs: &'a [M::Input<'a>]) -> RameResult<Vec<M::Output>> {
+        self.run(inputs)
     }
 }
 
@@ -189,14 +113,21 @@ mod tests {
     use std::rc::Rc;
 
     use crate::RameResult;
-    use crate::runtime::{DecodeBatch, Decoder, Pipeline, PipelineStep, ProcessedBatch, Processor};
+    use crate::runtime::{
+        DecodeBatch, Decoder, ModelArchitecture, ModelRunner, ProcessedBatch, Processor,
+    };
     use crate::session::InferSession;
     use crate::tensor::TensorMap;
 
-    use super::{DecodeStep, InferenceStep, ModelPipeline};
+    use super::StandardModelRunner;
 
     #[derive(Debug, Clone, Copy)]
     struct TestArchitecture;
+
+    impl ModelArchitecture for TestArchitecture {
+        type Input<'a> = i32;
+        type Output = i32;
+    }
 
     struct EchoProcessor;
 
@@ -242,9 +173,9 @@ mod tests {
     }
 
     #[test]
-    fn runs_standard_model_pipeline_once() {
+    fn runs_standard_model_once() {
         let runs = Rc::new(Cell::new(0));
-        let mut pipeline = ModelPipeline::new(
+        let mut runner = StandardModelRunner::new(
             TestArchitecture,
             EchoProcessor,
             CountingSession {
@@ -253,16 +184,16 @@ mod tests {
             EchoDecoder,
         );
 
-        let outputs = pipeline.run(&[1, 2, 3][..]).unwrap();
+        let outputs = runner.run_many(&[1, 2, 3]).unwrap();
 
         assert_eq!(outputs, vec![2, 4, 6]);
         assert_eq!(runs.get(), 1);
     }
 
     #[test]
-    fn skips_inference_for_empty_batches() {
+    fn skips_standard_model_for_empty_batches() {
         let runs = Rc::new(Cell::new(0));
-        let mut pipeline = ModelPipeline::new(
+        let mut runner = StandardModelRunner::new(
             TestArchitecture,
             EchoProcessor,
             CountingSession {
@@ -271,46 +202,7 @@ mod tests {
             EchoDecoder,
         );
 
-        let inputs: &[i32] = &[];
-        let outputs = pipeline.run(inputs).unwrap();
-
-        assert!(outputs.is_empty());
+        assert!(runner.run_many(&[]).unwrap().is_empty());
         assert_eq!(runs.get(), 0);
-    }
-
-    struct Reprocess;
-
-    impl PipelineStep<Vec<i32>> for Reprocess {
-        type Output = ProcessedBatch<i32>;
-
-        fn execute(&mut self, values: Vec<i32>) -> RameResult<Self::Output> {
-            Ok(ProcessedBatch {
-                len: values.len(),
-                inputs: TensorMap::new(),
-                contexts: values,
-            })
-        }
-    }
-
-    #[test]
-    fn composes_multiple_model_executions() {
-        let first = ModelPipeline::new(
-            TestArchitecture,
-            EchoProcessor,
-            CountingSession {
-                runs: Rc::new(Cell::new(0)),
-            },
-            EchoDecoder,
-        );
-        let second = Pipeline::new(Reprocess)
-            .then(InferenceStep::new(CountingSession {
-                runs: Rc::new(Cell::new(0)),
-            }))
-            .then(DecodeStep::new(EchoDecoder));
-        let mut pipeline = Pipeline::new(first).then(second);
-
-        let outputs = pipeline.run(&[1, 2, 3][..]).unwrap();
-
-        assert_eq!(outputs, vec![4, 8, 12]);
     }
 }
