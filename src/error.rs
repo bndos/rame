@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+use crate::audio::AudioError;
 use crate::image::ImageError;
 use crate::models::ModelError;
 use crate::preprocess::PreprocessError;
@@ -17,6 +18,9 @@ pub enum RameError {
         expected: usize,
         actual: usize,
     },
+
+    #[error(transparent)]
+    Audio(#[from] AudioError),
 
     #[error(transparent)]
     Image(#[from] ImageError),

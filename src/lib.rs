@@ -9,6 +9,7 @@
     )
 )]
 
+pub mod audio;
 pub mod error;
 pub mod geometry;
 pub mod image;
