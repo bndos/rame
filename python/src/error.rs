@@ -4,7 +4,7 @@ use rame::RameError;
 
 pub(crate) fn into_py_err(err: RameError) -> PyErr {
     match err {
-        RameError::Image(_) | RameError::InvalidBatchLength { .. } => {
+        RameError::Audio(_) | RameError::Image(_) | RameError::InvalidBatchLength { .. } => {
             PyValueError::new_err(err.to_string())
         }
         RameError::Source(_) => PyOSError::new_err(err.to_string()),

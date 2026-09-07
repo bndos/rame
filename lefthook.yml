@@ -1,5 +1,10 @@
 pre-commit:
+  piped: true
   commands:
     fmt:
+      priority: 1
       run: make fmt
       stage_fixed: true
+    check:
+      priority: 2
+      run: make check
