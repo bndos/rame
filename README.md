@@ -35,15 +35,13 @@ source -> loader -> runner -> result
 
 ```rust
 use rame::layout::LayoutModel;
-use rame::models::pp_doclayout::plus::{self, PpDocLayoutPlus};
+use rame::models::pp_doclayout::plus;
+use rame::runtime::ModelLoader;
 use rame::sources::HuggingFace;
 
 let source = HuggingFace::new()?.model("PaddlePaddle/PP-DocLayout_plus-L_onnx");
 
-let mut model = PpDocLayoutPlus::builder()
-    .source(source)
-    .artifact(plus::onnx::Artifact::default())
-    .build()?;
+let mut model = plus::onnx::Loader::default().load(source)?;
 
 let result = model.detect_layout(&image)?;
 ```
@@ -76,9 +74,9 @@ PaddleX [notes](https://paddlepaddle.github.io/PaddleX/3.5/en/pipeline_deploy/hi
 
 ## Supported Models
 
-| Model                       | Task             | Artifact |
-|-----------------------------|------------------|----------|
-| PaddleOCR PP-DocLayout Plus | Layout detection | ONNX     |
+| Model                       | Task             | Format |
+|-----------------------------|------------------|--------|
+| PaddleOCR PP-DocLayout Plus | Layout detection | ONNX   |
 
 More model integrations will be added as their preprocessing and decoding
 contracts are implemented.

@@ -1,5 +1,5 @@
-mod artifact;
+mod loader;
 #[doc(hidden)]
 pub mod processor;
 
-pub use artifact::{Artifact, Inputs, Outputs, Preprocess};
+pub use loader::{Inputs, Loader, Outputs, Preprocess};

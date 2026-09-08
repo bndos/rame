@@ -2,7 +2,8 @@ use std::path::Path;
 
 use rame::image::Image;
 use rame::layout::{Geometry, LayoutModel, LayoutRegion};
-use rame::models::pp_doclayout::plus::{self, PpDocLayoutPlus};
+use rame::models::pp_doclayout::plus;
+use rame::runtime::ModelLoader;
 use rame::sources::HuggingFace;
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
@@ -11,10 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let image = load_rgb_image("examples/fixtures/document.png")?;
     let source = HuggingFace::new()?.model("PaddlePaddle/PP-DocLayout_plus-L_onnx");
 
-    let mut model = PpDocLayoutPlus::builder()
-        .source(source)
-        .artifact(plus::onnx::Artifact::default())
-        .build()?;
+    let mut model = plus::onnx::Loader::default().load(source)?;
 
     let result = model.detect_layout(&image)?;
 

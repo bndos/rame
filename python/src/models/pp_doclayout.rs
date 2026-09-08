@@ -1,8 +1,8 @@
 use numpy::PyReadonlyArray3;
 use pyo3::prelude::*;
 use rame::layout::LayoutModel;
-use rame::models::pp_doclayout::plus::{self, PpDocLayoutPlus};
-use rame::models::pp_doclayout::v3::{self, PpDocLayoutV3};
+use rame::models::pp_doclayout::{plus, v3};
+use rame::runtime::ModelLoader;
 use rame::sources::HuggingFace;
 
 use crate::engine::PyOrtSessionConfig;
@@ -32,15 +32,8 @@ impl PyPpDocLayoutPlusOnnx {
             .map(PyOrtSessionConfig::to_ort_session_config)
             .transpose()?
             .unwrap_or_default();
-        let artifact = plus::onnx::Artifact::default().session_config(session_config);
-        let model = py
-            .detach(|| {
-                PpDocLayoutPlus::builder()
-                    .source(hf_source)
-                    .artifact(artifact)
-                    .build()
-            })
-            .map_err(into_py_err)?;
+        let loader = plus::onnx::Loader::default().session_config(session_config);
+        let model = py.detach(|| loader.load(hf_source)).map_err(into_py_err)?;
         Ok(Self {
             inner: Box::new(model),
         })
@@ -121,15 +114,8 @@ impl PyPpDocLayoutV3Onnx {
             .map(PyOrtSessionConfig::to_ort_session_config)
             .transpose()?
             .unwrap_or_default();
-        let artifact = v3::onnx::Artifact::default().session_config(session_config);
-        let model = py
-            .detach(|| {
-                PpDocLayoutV3::builder()
-                    .source(hf_source)
-                    .artifact(artifact)
-                    .build()
-            })
-            .map_err(into_py_err)?;
+        let loader = v3::onnx::Loader::default().session_config(session_config);
+        let model = py.detach(|| loader.load(hf_source)).map_err(into_py_err)?;
         Ok(Self {
             inner: Box::new(model),
         })

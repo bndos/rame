@@ -1,6 +1,4 @@
-use std::marker::PhantomData;
-
-use crate::runtime::{DecodeBatch, Decoder, ModelArchitecture, Processor};
+use crate::runtime::{DecodeBatch, Decoder, Processor};
 use crate::session::InferSession;
 use crate::{RameError, RameResult};
 
@@ -10,31 +8,27 @@ use crate::{RameError, RameResult};
 /// batch. Autoregressive models may implement this trait with a stateful loop.
 /// single-session models can use [`StandardModelRunner`].
 pub trait ModelRunner {
-    type Architecture: ModelArchitecture;
+    type Input<'a>;
+    type Output;
 
-    fn run_many<'a>(
-        &mut self,
-        inputs: &'a [<Self::Architecture as ModelArchitecture>::Input<'a>],
-    ) -> RameResult<Vec<<Self::Architecture as ModelArchitecture>::Output>>;
+    fn run_many<'a>(&mut self, inputs: &'a [Self::Input<'a>]) -> RameResult<Vec<Self::Output>>;
 }
 
 /// Standard processor -> session -> decoder model runner.
-pub struct StandardModelRunner<M, P, S, D> {
-    architecture: PhantomData<M>,
+pub struct StandardModelRunner<P, S, D> {
     processor: P,
     session: S,
     decoder: D,
 }
 
-impl<M, P, S, D> StandardModelRunner<M, P, S, D>
+impl<P, S, D> StandardModelRunner<P, S, D>
 where
     P: Processor,
     S: InferSession,
     D: Decoder<Context = P::Context>,
 {
-    pub fn new(_architecture: M, processor: P, session: S, decoder: D) -> Self {
+    pub fn new(processor: P, session: S, decoder: D) -> Self {
         Self {
-            architecture: PhantomData,
             processor,
             session,
             decoder,
@@ -93,16 +87,16 @@ where
     }
 }
 
-impl<M, P, S, D> ModelRunner for StandardModelRunner<M, P, S, D>
+impl<P, S, D> ModelRunner for StandardModelRunner<P, S, D>
 where
-    M: ModelArchitecture,
-    P: for<'a> Processor<Source<'a> = M::Input<'a>>,
+    P: Processor,
     S: InferSession,
-    D: Decoder<Output = M::Output, Context = P::Context>,
+    D: Decoder<Context = P::Context>,
 {
-    type Architecture = M;
+    type Input<'a> = P::Source<'a>;
+    type Output = D::Output;
 
-    fn run_many<'a>(&mut self, inputs: &'a [M::Input<'a>]) -> RameResult<Vec<M::Output>> {
+    fn run_many<'a>(&mut self, inputs: &'a [Self::Input<'a>]) -> RameResult<Vec<Self::Output>> {
         self.run(inputs)
     }
 }
@@ -113,21 +107,11 @@ mod tests {
     use std::rc::Rc;
 
     use crate::RameResult;
-    use crate::runtime::{
-        DecodeBatch, Decoder, ModelArchitecture, ModelRunner, ProcessedBatch, Processor,
-    };
+    use crate::runtime::{DecodeBatch, Decoder, ModelRunner, ProcessedBatch, Processor};
     use crate::session::InferSession;
     use crate::tensor::TensorMap;
 
     use super::StandardModelRunner;
-
-    #[derive(Debug, Clone, Copy)]
-    struct TestArchitecture;
-
-    impl ModelArchitecture for TestArchitecture {
-        type Input<'a> = i32;
-        type Output = i32;
-    }
 
     struct EchoProcessor;
 
@@ -176,7 +160,6 @@ mod tests {
     fn runs_standard_model_once() {
         let runs = Rc::new(Cell::new(0));
         let mut runner = StandardModelRunner::new(
-            TestArchitecture,
             EchoProcessor,
             CountingSession {
                 runs: Rc::clone(&runs),
@@ -194,7 +177,6 @@ mod tests {
     fn skips_standard_model_for_empty_batches() {
         let runs = Rc::new(Cell::new(0));
         let mut runner = StandardModelRunner::new(
-            TestArchitecture,
             EchoProcessor,
             CountingSession {
                 runs: Rc::clone(&runs),

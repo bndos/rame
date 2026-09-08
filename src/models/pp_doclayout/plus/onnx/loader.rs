@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
 use crate::RameResult;
-use crate::models::pp_doclayout::v3::decoder::PpDocLayoutV3Decoder;
-use crate::models::pp_doclayout::v3::model::PpDocLayoutV3;
-use crate::models::pp_doclayout::v3::onnx::processor::PpDocLayoutV3OnnxProcessor;
+use crate::models::pp_doclayout::plus::decoder::PpDocLayoutPlusDecoder;
+use crate::models::pp_doclayout::plus::onnx::processor::PpDocLayoutPlusOnnxProcessor;
 use crate::preprocess::PreprocessConfig;
 use crate::preprocess::vision::{Interpolation, NormalizeImage, Resize, ToTensor};
 use crate::runtime::{ModelLoader, StandardModelRunner};
@@ -11,17 +10,14 @@ use crate::session::SessionBackend;
 use crate::session::ort::{OrtBackend, OrtSession, OrtSessionConfig};
 use crate::sources::ResolvedModelSource;
 
-/// PaddleOCR PP-DocLayoutV3 ONNX artifact configuration.
+/// Loads the PaddleX PP-DocLayout Plus ONNX export.
 ///
-/// The official ONNX artifact uses `inference.onnx`, Paddle-style inputs
-/// `image`, `im_shape`, `scale_factor`, and fixed 800x800 preprocessing with
-/// PaddleX object-detection scale-only normalization.
-///
-/// Sources:
-/// - PP-DocLayoutV3 transform config: <https://github.com/PaddlePaddle/PaddleX/blob/develop/paddlex/repo_apis/PaddleDetection_api/configs/PP-DocLayoutV3.yaml>
-/// - PaddleX `NormalizeImage` defaults `is_scale` to `true`, making `norm_type: none` scale by `1 / 255`: <https://github.com/PaddlePaddle/PaddleX/blob/develop/paddlex/inference/models/object_detection/predictor.py>
+/// The preprocessing recipe follows PaddleX RT-DETR metadata for
+/// `PP-DocLayout_plus-L`: resize to 800x800 and convert to NCHW f32 tensor
+/// with scale-only normalization.
+/// Source: <https://github.com/PaddlePaddle/PaddleX/blob/develop/paddlex/modules/base/utils/pdparams2safetensors/inference_meta.py#L150-L159>
 #[derive(Debug, Clone)]
-pub struct Artifact {
+pub struct Loader {
     pub model_file: PathBuf,
     pub inputs: Inputs,
     pub outputs: Outputs,
@@ -30,7 +26,7 @@ pub struct Artifact {
     pub session_config: OrtSessionConfig,
 }
 
-impl Default for Artifact {
+impl Default for Loader {
     fn default() -> Self {
         Self {
             model_file: PathBuf::from("inference.onnx"),
@@ -43,7 +39,7 @@ impl Default for Artifact {
     }
 }
 
-impl Artifact {
+impl Loader {
     pub fn model_file(mut self, model_file: impl Into<PathBuf>) -> Self {
         self.model_file = model_file.into();
         self
@@ -96,7 +92,6 @@ impl Default for Inputs {
 pub struct Outputs {
     pub boxes: String,
     pub boxes_num: String,
-    pub masks: String,
 }
 
 impl Default for Outputs {
@@ -104,7 +99,6 @@ impl Default for Outputs {
         Self {
             boxes: "fetch_name_0".to_string(),
             boxes_num: "fetch_name_1".to_string(),
-            masks: "fetch_name_2".to_string(),
         }
     }
 }
@@ -124,19 +118,11 @@ impl Default for Preprocess {
     }
 }
 
-impl ModelLoader<PpDocLayoutV3> for Artifact {
-    type Runner = StandardModelRunner<
-        PpDocLayoutV3,
-        PpDocLayoutV3OnnxProcessor,
-        OrtSession,
-        PpDocLayoutV3Decoder,
-    >;
+impl ModelLoader for Loader {
+    type Runner =
+        StandardModelRunner<PpDocLayoutPlusOnnxProcessor, OrtSession, PpDocLayoutPlusDecoder>;
 
-    fn load(
-        self,
-        architecture: PpDocLayoutV3,
-        source: ResolvedModelSource,
-    ) -> RameResult<Self::Runner> {
+    fn load_resolved(self, source: ResolvedModelSource) -> RameResult<Self::Runner> {
         let session_config = self
             .session_config
             .output(self.outputs.boxes.clone())
@@ -145,10 +131,9 @@ impl ModelLoader<PpDocLayoutV3> for Artifact {
         let session = OrtBackend::load(&model_path, session_config)?;
 
         Ok(StandardModelRunner::new(
-            architecture,
-            PpDocLayoutV3OnnxProcessor::new(self.inputs, self.preprocess, self.preprocess_config),
+            PpDocLayoutPlusOnnxProcessor::new(self.inputs, self.preprocess, self.preprocess_config),
             session,
-            PpDocLayoutV3Decoder::new(self.outputs.boxes, self.outputs.boxes_num),
+            PpDocLayoutPlusDecoder::new(self.outputs.boxes, self.outputs.boxes_num),
         ))
     }
 }
