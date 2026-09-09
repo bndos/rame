@@ -22,6 +22,7 @@ pub mod runtime;
 pub mod session;
 pub mod sources;
 pub mod tensor;
+pub mod tokenization;
 pub mod transcription;
 
 pub use error::{RameError, RameResult};
