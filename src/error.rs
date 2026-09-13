@@ -7,6 +7,7 @@ use crate::preprocess::PreprocessError;
 use crate::session::SessionError;
 use crate::sources::SourceError;
 use crate::tensor::TensorError;
+use crate::tokenization::TokenizationError;
 use crate::transcription::TranscriptionError;
 
 pub type RameResult<T> = Result<T, RameError>;
@@ -40,6 +41,9 @@ pub enum RameError {
 
     #[error(transparent)]
     Tensor(#[from] TensorError),
+
+    #[error(transparent)]
+    Tokenization(#[from] TokenizationError),
 
     #[error(transparent)]
     Transcription(#[from] TranscriptionError),

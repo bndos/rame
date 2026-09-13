@@ -7,6 +7,7 @@ pub(crate) fn into_py_err(err: RameError) -> PyErr {
         RameError::Audio(_)
         | RameError::Image(_)
         | RameError::Transcription(_)
+        | RameError::Tokenization(_)
         | RameError::InvalidBatchLength { .. } => PyValueError::new_err(err.to_string()),
         RameError::Source(_) => PyOSError::new_err(err.to_string()),
         RameError::Session(_)

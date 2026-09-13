@@ -26,9 +26,7 @@ impl From<Vec<TokenId>> for Encoding {
 pub trait Encoder: Send + Sync {
     fn encode(&self, input: &str) -> RameResult<Encoding>;
 
-    fn encode_many(&self, inputs: &[&str]) -> RameResult<Vec<Encoding>> {
-        inputs.iter().map(|input| self.encode(input)).collect()
-    }
+    fn encode_many(&self, inputs: &[&str]) -> RameResult<Vec<Encoding>>;
 }
 
 #[cfg(test)]
@@ -43,10 +41,14 @@ mod tests {
         fn encode(&self, input: &str) -> RameResult<Encoding> {
             Ok(vec![input.len() as TokenId].into())
         }
+
+        fn encode_many(&self, inputs: &[&str]) -> RameResult<Vec<Encoding>> {
+            inputs.iter().map(|input| self.encode(input)).collect()
+        }
     }
 
     #[test]
-    fn encodes_many_with_the_default_serial_implementation() {
+    fn encodes_many_in_input_order() {
         let encoded = LengthEncoder.encode_many(&["one", "three"]).unwrap();
 
         assert_eq!(
