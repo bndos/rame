@@ -3,7 +3,7 @@ use ndarray::ArrayView2;
 use crate::RameResult;
 use crate::geometry::Rect;
 use crate::layout::{Geometry, LayoutRegion, LayoutResult};
-use crate::models::pp_doclayout::boxes::BatchedBoxes;
+use crate::models::pp_doclayout::packed_boxes::BatchedBoxes;
 use crate::models::pp_doclayout::v3::labels::label_for_class_id;
 use crate::runtime::{DecodeBatch, Decoder};
 

@@ -163,7 +163,7 @@ fn invalid_box_count(name: &str, count: impl ToString) -> crate::RameError {
 mod tests {
     use ndarray::{Array1, Array2};
 
-    use crate::models::pp_doclayout::boxes::BatchedBoxes;
+    use crate::models::pp_doclayout::packed_boxes::BatchedBoxes;
     use crate::tensor::{Tensor, TensorMap};
 
     #[test]
