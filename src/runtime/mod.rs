@@ -1,11 +1,13 @@
 mod batch;
 mod decoder;
 mod loader;
-mod model;
 mod processor;
+mod runner;
+mod standard;
 
 pub(crate) use batch::expect_one;
 pub use decoder::{DecodeBatch, Decoder};
 pub use loader::ModelLoader;
-pub use model::{ModelRunner, StandardModelRunner};
 pub use processor::{ProcessedBatch, Processor};
+pub use runner::ModelRunner;
+pub use standard::StandardModelRunner;

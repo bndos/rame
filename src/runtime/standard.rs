@@ -1,20 +1,8 @@
-use crate::runtime::{DecodeBatch, Decoder, Processor};
+use crate::runtime::{DecodeBatch, Decoder, ModelRunner, Processor};
 use crate::session::InferSession;
 use crate::{RameError, RameResult};
 
-/// Executes one loaded semantic model.
-///
-/// A runner owns the runtime resources and control flow needed to complete a
-/// batch. Autoregressive models may implement this trait with a stateful loop.
-/// single-session models can use [`StandardModelRunner`].
-pub trait ModelRunner {
-    type Input<'a>;
-    type Output;
-
-    fn run_many<'a>(&mut self, inputs: &'a [Self::Input<'a>]) -> RameResult<Vec<Self::Output>>;
-}
-
-/// Standard processor -> session -> decoder model runner.
+/// Processor -> session -> decoder model runner.
 pub struct StandardModelRunner<P, S, D> {
     processor: P,
     session: S,
