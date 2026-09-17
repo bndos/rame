@@ -1,6 +1,9 @@
 use crate::RameResult;
 use crate::audio::AudioView;
-use crate::runtime::expect_one;
+use crate::runtime::{
+    JointNetwork, PredictionNetwork, Processor, TransducerDecoding, TransducerEncoder,
+    TransducerModelRunner, expect_one,
+};
 
 use super::{TranscriptionOptions, TranscriptionResult};
 
@@ -33,6 +36,22 @@ pub trait TranscriptionModel {
     fn transcribe(&mut self, input: TranscriptionInput<'_>) -> RameResult<TranscriptionResult> {
         let results = self.transcribe_many(std::slice::from_ref(&input))?;
         expect_one(results, "transcription output")
+    }
+}
+
+impl<A, E, P, J, D> TranscriptionModel for TransducerModelRunner<A, E, P, J, D>
+where
+    A: for<'a> Processor<Source<'a> = TranscriptionInput<'a>>,
+    E: TransducerEncoder,
+    P: PredictionNetwork,
+    J: JointNetwork<Encoded = E::Output, Predicted = P::Output>,
+    D: TransducerDecoding<E, P, J, Output = TranscriptionResult>,
+{
+    fn transcribe_many(
+        &mut self,
+        inputs: &[TranscriptionInput<'_>],
+    ) -> RameResult<Vec<TranscriptionResult>> {
+        self.run(inputs)
     }
 }
 
