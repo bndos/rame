@@ -1,3 +1,3 @@
 mod config;
 
-pub use config::ParakeetConfig;
+pub use config::{ParakeetFeatureExtractorConfig, ParakeetTdtConfig};
