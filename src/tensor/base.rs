@@ -88,6 +88,14 @@ impl Tensor {
         Self::from_vec(data, shape)
     }
 
+    /// Returns a tensor view selecting a range along one dimension.
+    pub fn narrow(&self, dimension: usize, start: usize, length: usize) -> TensorResult<Self> {
+        self.0
+            .narrow(dimension, start, length)
+            .map(Self)
+            .map_err(Into::into)
+    }
+
     pub fn to_array<T>(&self) -> TensorResult<ArrayD<T>>
     where
         T: candle_core::WithDType + Clone,
