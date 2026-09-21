@@ -45,7 +45,7 @@ where
     E: TransducerEncoder,
     P: PredictionNetwork,
     J: JointNetwork<Encoded = E::Output, Predicted = P::Output>,
-    D: TransducerDecoding<E, P, J, Output = TranscriptionResult>,
+    D: TransducerDecoding<E, P, J, Context = A::Context, Output = TranscriptionResult>,
 {
     fn transcribe_many(
         &mut self,

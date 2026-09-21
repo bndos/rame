@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::runtime::transducer::tdt::TdtDecodingConfig;
 use crate::tokenization::TokenId;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -21,6 +22,17 @@ pub struct ParakeetTdtConfig {
     pub num_token_classes: usize,
     pub blank_token_id: TokenId,
     pub durations: [usize; 5],
+}
+
+impl From<ParakeetTdtConfig> for TdtDecodingConfig {
+    fn from(config: ParakeetTdtConfig) -> Self {
+        Self::new(
+            config.num_token_classes,
+            config.blank_token_id,
+            config.durations,
+            config.max_symbols_per_step,
+        )
+    }
 }
 
 impl ParakeetTdtConfig {

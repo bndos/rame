@@ -4,7 +4,7 @@ mod loader;
 mod processor;
 mod runner;
 mod standard;
-mod transducer;
+pub mod transducer;
 
 pub(crate) use batch::expect_one;
 pub use decoder::{DecodeBatch, Decoder};
