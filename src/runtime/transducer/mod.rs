@@ -24,6 +24,15 @@ pub trait PredictionNetwork {
         tokens: &[Self::Token],
         state: &Self::State,
     ) -> RameResult<(Self::Output, Self::State)>;
+
+    fn replace_prediction(
+        &mut self,
+        output: &mut Self::Output,
+        state: &mut Self::State,
+        candidate_output: Self::Output,
+        candidate_state: Self::State,
+        replace_mask: &[bool],
+    ) -> RameResult<()>;
 }
 
 /// Combines acoustic and text-history representations into output logits.
@@ -199,6 +208,17 @@ mod tests {
             _state: &Self::State,
         ) -> RameResult<(Self::Output, Self::State)> {
             Ok(((), ()))
+        }
+
+        fn replace_prediction(
+            &mut self,
+            _output: &mut Self::Output,
+            _state: &mut Self::State,
+            _candidate_output: Self::Output,
+            _candidate_state: Self::State,
+            _replace_mask: &[bool],
+        ) -> RameResult<()> {
+            Ok(())
         }
     }
 

@@ -1,9 +1,11 @@
 mod greedy;
+mod hypothesis;
 mod joint;
 
 use crate::tokenization::TokenId;
 
-pub use greedy::{TdtGreedySearch, TdtHypothesis, TdtTokenAlignment};
+pub use greedy::TdtGreedySearch;
+pub use hypothesis::{TdtHypothesis, TdtTokenAlignment};
 pub use joint::{TdtJointLayout, TdtJointOutput};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
