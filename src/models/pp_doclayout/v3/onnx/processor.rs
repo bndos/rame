@@ -68,8 +68,8 @@ mod tests {
     use crate::models::pp_doclayout::v3::onnx::{Inputs, Preprocess};
     use crate::preprocess::vision::{Interpolation, Resize};
     use crate::runtime::Processor;
+    use crate::tensor::DType;
     use crate::tensor::Tensor;
-    use candle_core::DType;
     use ndarray::ArrayD;
 
     use super::PpDocLayoutV3OnnxProcessor;
@@ -144,7 +144,7 @@ mod tests {
     }
 
     fn f32_array(tensor: &Tensor) -> ArrayD<f32> {
-        tensor.to_array().unwrap_or_else(|err| {
+        crate::tensor::to_array(tensor).unwrap_or_else(|err| {
             panic!("expected f32 tensor: {err}");
         })
     }

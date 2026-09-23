@@ -44,10 +44,10 @@ mod tests {
 
         assert_eq!(output.tensor.dims(), &[1, 3, 2, 2]);
         assert_eq!(output.scale_factors.dims(), &[1, 2]);
-        let scale_factors = output.scale_factors.to_array::<f32>().unwrap();
+        let scale_factors = crate::tensor::to_array::<f32>(&output.scale_factors).unwrap();
         assert_eq!(scale_factors[[0, 0]], 2.0);
         assert_eq!(scale_factors[[0, 1]], 2.0);
-        let tensor = output.tensor.to_array::<f32>().unwrap();
+        let tensor = crate::tensor::to_array::<f32>(&output.tensor).unwrap();
         assert_eq!(tensor[[0, 0, 0, 0]], 1.0);
     }
 }

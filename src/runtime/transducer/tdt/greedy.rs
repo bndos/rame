@@ -1,9 +1,7 @@
-use candle_core::D;
-
 use crate::RameResult;
 use crate::models::ModelError;
 use crate::runtime::{JointNetwork, PredictionNetwork, expect_one};
-use crate::tensor::{Tensor, TensorError};
+use crate::tensor::{D, Tensor, TensorError};
 use crate::tokenization::TokenId;
 
 use super::{TdtDecodingConfig, TdtHypothesis, TdtJointOutput};
@@ -301,7 +299,9 @@ mod tests {
                 Tensor::from_vec(
                     logits,
                     (time_indices.len(), self.layout.joint_logit_count()),
-                )?,
+                    &crate::tensor::Device::Cpu,
+                )
+                .map_err(crate::tensor::TensorError::from)?,
                 self.layout,
             )
         }

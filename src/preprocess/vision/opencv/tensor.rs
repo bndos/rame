@@ -5,6 +5,7 @@ use crate::preprocess::vision::ToTensor;
 use crate::preprocess::vision::opencv::OpenCvVisionBackend;
 use crate::preprocess::vision::opencv::cpu;
 use crate::preprocess::vision::opencv::state::OpenCvVisionData;
+use crate::tensor::Device;
 
 impl PreprocessOp<OpenCvVisionBackend> for ToTensor {
     fn forward<'a>(
@@ -12,16 +13,16 @@ impl PreprocessOp<OpenCvVisionBackend> for ToTensor {
         data: <OpenCvVisionBackend as PreprocessBackend>::Data<'a>,
     ) -> RameResult<<OpenCvVisionBackend as PreprocessBackend>::Data<'a>> {
         let batch = data.into_image_batch()?;
-        let output = match &*batch.device {
-            candle_core::Device::Cpu => cpu::to_tensor(self, batch)?,
-            candle_core::Device::Cuda(_) => {
+        let output = match &batch.device {
+            Device::Cpu => cpu::to_tensor(self, batch)?,
+            Device::Cuda(_) => {
                 return Err(PreprocessError::UnsupportedBackendOp {
                     backend: "OpenCV CUDA",
                     op: "ToTensor",
                 }
                 .into());
             }
-            candle_core::Device::Metal(_) => {
+            Device::Metal(_) => {
                 return Err(PreprocessError::UnsupportedBackendOp {
                     backend: "OpenCV Metal",
                     op: "ToTensor",
@@ -48,7 +49,7 @@ mod tests {
     fn converts_images_to_nchw_tensor() {
         let images = [Image::from_rgb8(2, 1, vec![255, 0, 64, 32, 128, 255]).unwrap()];
         let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
-        let batch = OpenCvVisionBatch::new(&image_views, Device::cpu()).unwrap();
+        let batch = OpenCvVisionBatch::new(&image_views, Device::Cpu).unwrap();
         let output = ToTensor::nchw()
             .forward(OpenCvVisionData::ImageBatch(batch))
             .unwrap();
@@ -75,7 +76,7 @@ mod tests {
 
         let image_views = images.iter().map(Image::as_view).collect::<Vec<_>>();
         let normalize = NormalizeImage::new(0.5, [0.1, 0.2, 0.3], [1.0, 2.0, 4.0]);
-        let batch = OpenCvVisionBatch::new(&image_views, Device::cpu()).unwrap();
+        let batch = OpenCvVisionBatch::new(&image_views, Device::Cpu).unwrap();
 
         let output = ToTensor::nchw()
             .normalize(normalize)
@@ -119,6 +120,6 @@ mod tests {
     }
 
     fn tensor_to_array(tensor: Tensor) -> ArrayD<f32> {
-        tensor.to_array().unwrap()
+        crate::tensor::to_array(&tensor).unwrap()
     }
 }

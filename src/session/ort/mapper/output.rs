@@ -2,7 +2,7 @@ use ort::session::SessionOutputs;
 use ort::value::{DynValue, TensorElementType};
 
 use crate::session::ort::OrtError;
-use crate::tensor::{Tensor, TensorMap};
+use crate::tensor::{Tensor, TensorMap, from_array};
 use crate::{RameError, RameResult};
 
 impl TryFrom<SessionOutputs<'_>> for TensorMap {
@@ -37,9 +37,9 @@ fn output_to_tensor(name: &str, value: DynValue) -> RameResult<Tensor> {
 
 fn extract_output_tensor<T>(name: &str, value: DynValue) -> RameResult<Tensor>
 where
-    T: ort::value::PrimitiveTensorElementType + candle_core::WithDType + Clone,
+    T: ort::value::PrimitiveTensorElementType + crate::tensor::TensorElement,
 {
-    Tensor::from_array(
+    from_array(
         value
             .try_extract_array::<T>()
             .map_err(OrtError::from)?

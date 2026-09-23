@@ -29,8 +29,12 @@ impl TensorOrtInput<'_> {
     }
 }
 
-impl Tensor {
-    pub(super) fn ort_input<'a>(&'a self, name: &'a str) -> ort::Result<TensorOrtInput<'a>> {
+pub(super) trait TensorOrtExt {
+    fn ort_input<'a>(&'a self, name: &'a str) -> ort::Result<TensorOrtInput<'a>>;
+}
+
+impl TensorOrtExt for Tensor {
+    fn ort_input<'a>(&'a self, name: &'a str) -> ort::Result<TensorOrtInput<'a>> {
         let (storage, layout) = self.storage_and_layout();
         if !layout.is_contiguous() || layout.start_offset() != 0 {
             return Err(ort::Error::new(format!(

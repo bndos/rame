@@ -79,7 +79,7 @@ mod tests {
     use crate::layout::{Geometry, LayoutLabel};
     use crate::models::pp_doclayout::plus::decoder::PpDocLayoutPlusDecoder;
     use crate::runtime::{DecodeBatch, Decoder};
-    use crate::tensor::{Tensor, TensorMap};
+    use crate::tensor::{Tensor, TensorMap, from_array};
 
     #[test]
     fn decodes_pp_doclayout_plus_boxes() {
@@ -227,8 +227,8 @@ mod tests {
 
     fn tensor<T>(array: ndarray::ArrayD<T>) -> Tensor
     where
-        T: candle_core::WithDType + Clone,
+        T: crate::tensor::TensorElement,
     {
-        Tensor::from_array(array).unwrap()
+        from_array(array).unwrap()
     }
 }

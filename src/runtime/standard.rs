@@ -110,7 +110,7 @@ mod tests {
         fn process_many<'a>(
             &self,
             sources: &'a [Self::Source<'a>],
-        ) -> RameResult<ProcessedBatch<i32>> {
+        ) -> RameResult<ProcessedBatch<Self::Context>> {
             Ok(ProcessedBatch {
                 len: sources.len(),
                 inputs: TensorMap::new(),

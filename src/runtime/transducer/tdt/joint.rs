@@ -1,6 +1,6 @@
 use crate::RameResult;
 use crate::models::ModelError;
-use crate::tensor::Tensor;
+use crate::tensor::{Tensor, TensorError};
 
 #[derive(Debug, Clone)]
 pub struct TdtJointOutput {
@@ -65,12 +65,16 @@ impl TdtJointOutput {
         }
 
         let output_axis = leading_dimensions.len();
-        let token_logits = logits.narrow(output_axis, 0, layout.num_token_classes)?;
-        let duration_logits = logits.narrow(
-            output_axis,
-            layout.num_token_classes,
-            layout.num_duration_classes,
-        )?;
+        let token_logits = logits
+            .narrow(output_axis, 0, layout.num_token_classes)
+            .map_err(TensorError::from)?;
+        let duration_logits = logits
+            .narrow(
+                output_axis,
+                layout.num_token_classes,
+                layout.num_duration_classes,
+            )
+            .map_err(TensorError::from)?;
 
         Ok(Self {
             token_logits,
@@ -105,8 +109,12 @@ mod tests {
         let layout =
             TdtJointLayout::from(&TdtDecodingConfig::new(8_193, 8_192, [0, 1, 2, 3, 4], 10));
         let joint_logit_count = layout.joint_logit_count();
-        let logits =
-            Tensor::from_vec(vec![0.0f32; 2 * joint_logit_count], (2, joint_logit_count)).unwrap();
+        let logits = Tensor::from_vec(
+            vec![0.0f32; 2 * joint_logit_count],
+            (2, joint_logit_count),
+            &crate::tensor::Device::Cpu,
+        )
+        .unwrap();
 
         let output = TdtJointOutput::from_combined(logits, layout).unwrap();
 
@@ -118,7 +126,8 @@ mod tests {
     fn rejects_an_incompatible_joint_width() {
         let layout =
             TdtJointLayout::from(&TdtDecodingConfig::new(8_193, 8_192, [0, 1, 2, 3, 4], 10));
-        let logits = Tensor::from_vec(vec![0.0f32; 8_197], 8_197).unwrap();
+        let logits =
+            Tensor::from_vec(vec![0.0f32; 8_197], 8_197, &crate::tensor::Device::Cpu).unwrap();
 
         let error = TdtJointOutput::from_combined(logits, layout).unwrap_err();
 

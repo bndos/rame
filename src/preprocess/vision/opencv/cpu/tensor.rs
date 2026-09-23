@@ -5,7 +5,7 @@ use crate::RameResult;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch};
 use crate::preprocess::vision::{NormalizeImage, TensorLayout, ToTensor, VisionBatchOutput};
-use crate::tensor::Tensor;
+use crate::tensor::{Device, Tensor};
 
 pub(in crate::preprocess::vision::opencv) fn to_tensor(
     op: &ToTensor,
@@ -22,10 +22,11 @@ fn output(
     image_shapes: Vec<f32>,
     scale_factors: Vec<f32>,
 ) -> RameResult<VisionBatchOutput> {
-    let tensor = Tensor::from_vec(data, &shape).map_err(|err| PreprocessError::Backend {
-        backend: "candle",
-        message: err.to_string(),
-    })?;
+    let tensor =
+        Tensor::from_vec(data, &shape, &Device::Cpu).map_err(|err| PreprocessError::Backend {
+            backend: "candle",
+            message: err.to_string(),
+        })?;
     let len = shape[0];
 
     let image_shapes = metadata_tensor(image_shapes, len)?;
@@ -124,7 +125,7 @@ fn mat_into_nchw(
 }
 
 fn metadata_tensor(data: Vec<f32>, len: usize) -> RameResult<Tensor> {
-    Tensor::from_vec(data, &[len, 2]).map_err(|err| {
+    Tensor::from_vec(data, &[len, 2], &Device::Cpu).map_err(|err| {
         PreprocessError::Backend {
             backend: "candle",
             message: err.to_string(),

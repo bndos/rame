@@ -7,6 +7,7 @@ use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::opencv::OpenCvVisionBackend;
 use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionData};
 use crate::preprocess::vision::{Resize, ResizeMode};
+use crate::tensor::Device;
 
 impl PreprocessOp<OpenCvVisionBackend> for Resize {
     fn forward<'a>(
@@ -36,16 +37,16 @@ impl Resize {
     fn resize_image(
         &self,
         source: &OpenCvImage<'_>,
-        device: &candle_core::Device,
+        device: &Device,
     ) -> RameResult<OpenCvImage<'static>> {
         match device {
-            candle_core::Device::Cpu => cpu::resize(self, source).map(OpenCvImage::Owned),
-            candle_core::Device::Cuda(_) => Err(PreprocessError::UnsupportedBackendOp {
+            Device::Cpu => cpu::resize(self, source).map(OpenCvImage::Owned),
+            Device::Cuda(_) => Err(PreprocessError::UnsupportedBackendOp {
                 backend: "OpenCV CUDA",
                 op: "Resize",
             }
             .into()),
-            candle_core::Device::Metal(_) => Err(PreprocessError::UnsupportedBackendOp {
+            Device::Metal(_) => Err(PreprocessError::UnsupportedBackendOp {
                 backend: "OpenCV Metal",
                 op: "Resize",
             }

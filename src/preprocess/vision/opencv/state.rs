@@ -16,7 +16,7 @@ pub struct OpenCvVisionBackend {
 
 impl Default for OpenCvVisionBackend {
     fn default() -> Self {
-        Self::new(Device::cpu())
+        Self::new(Device::Cpu)
     }
 }
 

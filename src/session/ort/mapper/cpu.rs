@@ -1,11 +1,11 @@
 use std::sync::RwLockReadGuard;
 
-use candle_core::{DType, Storage};
+use candle_core::Storage;
 use ort::session::SessionInputValue;
 use ort::value::{PrimitiveTensorElementType, TensorRef};
 
 use crate::session::ort::mapper::input::{TensorOrtInput as OrtInput, TensorOrtInputDevice};
-use crate::tensor::Tensor;
+use crate::tensor::{DType, Tensor};
 
 pub(in crate::session::ort) type TensorOrtInput<'a> = OrtInput<'a, CpuTensorOrtInputDevice>;
 

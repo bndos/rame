@@ -1,4 +1,4 @@
-use candle_core::DType;
+use crate::tensor::{DType, TensorElement, to_array};
 use ndarray::{Array2, ArrayView2, Ix2, s};
 
 use crate::RameResult;
@@ -85,8 +85,7 @@ fn require_boxes_tensor(
         .into());
     }
 
-    tensor
-        .to_array::<f32>()
+    to_array::<f32>(tensor)
         .map_err(|err| ModelError::InvalidTensorShape {
             name: name.to_string(),
             expected: err.to_string(),
@@ -131,11 +130,10 @@ fn require_boxes_num_tensor(outputs: &TensorMap, name: &str) -> RameResult<Vec<u
 
 fn box_counts<T>(tensor: &crate::tensor::Tensor, name: &str) -> RameResult<Vec<usize>>
 where
-    T: candle_core::WithDType + Copy + TryInto<usize>,
+    T: TensorElement + Copy + TryInto<usize> + std::fmt::Display,
     T::Error: std::fmt::Debug,
 {
-    tensor
-        .to_array::<T>()
+    to_array::<T>(tensor)
         .map_err(|err| ModelError::InvalidTensorShape {
             name: name.to_string(),
             expected: err.to_string(),
@@ -164,7 +162,7 @@ mod tests {
     use ndarray::{Array1, Array2};
 
     use crate::models::pp_doclayout::packed_boxes::BatchedBoxes;
-    use crate::tensor::{Tensor, TensorMap};
+    use crate::tensor::{TensorMap, from_array};
 
     #[test]
     fn splits_boxes_by_boxes_num() {
@@ -225,13 +223,10 @@ mod tests {
 
     fn outputs_with_counts(boxes: Array2<f32>, counts: Vec<i32>) -> TensorMap {
         let mut outputs = TensorMap::new();
-        outputs.insert(
-            "boxes".to_string(),
-            Tensor::from_array(boxes.into_dyn()).unwrap(),
-        );
+        outputs.insert("boxes".to_string(), from_array(boxes.into_dyn()).unwrap());
         outputs.insert(
             "boxes_num".to_string(),
-            Tensor::from_array(Array1::from_vec(counts).into_dyn()).unwrap(),
+            from_array(Array1::from_vec(counts).into_dyn()).unwrap(),
         );
         outputs
     }
