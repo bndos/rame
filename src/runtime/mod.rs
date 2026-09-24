@@ -13,5 +13,6 @@ pub use processor::{ProcessedBatch, Processor};
 pub use runner::ModelRunner;
 pub use standard::StandardModelRunner;
 pub use transducer::{
-    JointNetwork, PredictionNetwork, TransducerDecoding, TransducerEncoder, TransducerModelRunner,
+    JointNetwork, PredictionNetwork, TransducerDecoding, TransducerEncoder, TransducerEncoding,
+    TransducerModelRunner,
 };

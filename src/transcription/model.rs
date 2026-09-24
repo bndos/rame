@@ -44,7 +44,7 @@ where
     A: for<'a> Processor<Source<'a> = TranscriptionInput<'a>>,
     E: TransducerEncoder,
     P: PredictionNetwork,
-    J: JointNetwork<Encoded = E::Output, Predicted = P::Output>,
+    J: JointNetwork,
     D: TransducerDecoding<E, P, J, Context = A::Context, Output = TranscriptionResult>,
 {
     fn transcribe_many(

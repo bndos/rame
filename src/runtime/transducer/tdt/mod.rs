@@ -1,17 +1,14 @@
 mod greedy;
 mod hypothesis;
 mod joint;
-mod tensor;
+mod search;
 
 use crate::tokenization::TokenId;
 
-pub use greedy::TdtGreedySearch;
+pub use greedy::StandardTdtGreedyExecutor;
 pub use hypothesis::{TdtHypothesis, TdtTokenAlignment};
 pub use joint::{TdtJointLayout, TdtJointOutput};
-pub use tensor::{
-    TdtWorkspaceProfile, TensorJointNetwork, TensorPredictionNetwork, TensorTdtGreedyExecutor,
-    TensorTdtWorkspace,
-};
+pub use search::TdtSearch;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TdtDecodingConfig {
