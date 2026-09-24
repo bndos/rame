@@ -152,6 +152,17 @@ where
     }
 }
 
+fn validate_batch_length(stage: &'static str, expected: usize, actual: usize) -> RameResult<()> {
+    if actual != expected {
+        return Err(RameError::InvalidBatchLength {
+            stage,
+            expected,
+            actual,
+        });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::RameResult;
@@ -268,15 +279,4 @@ mod tests {
 
         assert_eq!(runner.run(&[1, 2, 3]).unwrap(), [2, 4, 6]);
     }
-}
-
-fn validate_batch_length(stage: &'static str, expected: usize, actual: usize) -> RameResult<()> {
-    if actual != expected {
-        return Err(RameError::InvalidBatchLength {
-            stage,
-            expected,
-            actual,
-        });
-    }
-    Ok(())
 }

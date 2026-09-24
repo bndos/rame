@@ -18,4 +18,10 @@ pub enum ModelError {
         expected: String,
         actual: String,
     },
+
+    #[error("unsupported model feature `{feature}`: {reason}")]
+    UnsupportedFeature {
+        feature: &'static str,
+        reason: &'static str,
+    },
 }
