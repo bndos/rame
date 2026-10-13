@@ -5,6 +5,8 @@ mod search;
 
 use crate::tokenization::TokenId;
 
+#[cfg(all(feature = "mlx", target_os = "macos"))]
+pub use greedy::MlxTdtGreedyExecutor;
 pub use greedy::StandardTdtGreedyExecutor;
 pub use hypothesis::{TdtHypothesis, TdtTokenAlignment};
 pub use joint::{TdtJointLayout, TdtJointOutput};

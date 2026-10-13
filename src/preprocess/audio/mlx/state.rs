@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use mlx_rs::Array;
 
@@ -10,7 +10,7 @@ use crate::preprocess::pipeline::PreprocessBackend;
 
 pub struct MlxAudioBackend {
     spectrogram: LogMelSpectrogram,
-    assets: Arc<SpectrogramAssets>,
+    assets: Rc<SpectrogramAssets>,
 }
 
 pub(super) struct SpectrogramAssets {
@@ -21,7 +21,7 @@ pub(super) struct SpectrogramAssets {
 pub struct MlxAudioData<'a> {
     pub(super) stage: Stage<'a>,
     pub(super) spectrogram: LogMelSpectrogram,
-    pub(super) assets: Arc<SpectrogramAssets>,
+    pub(super) assets: Rc<SpectrogramAssets>,
 }
 
 pub(super) enum Stage<'a> {
@@ -48,7 +48,7 @@ impl MlxAudioBackend {
         }
         Ok(Self {
             spectrogram,
-            assets: Arc::new(SpectrogramAssets {
+            assets: Rc::new(SpectrogramAssets {
                 window: Array::from_slice(
                     &spectrogram.hann_window(),
                     &[spectrogram.fft_size as i32],
@@ -81,7 +81,7 @@ impl PreprocessBackend for MlxAudioBackend {
         Ok(MlxAudioData {
             stage: Stage::Pcm(sources.to_vec()),
             spectrogram: self.spectrogram,
-            assets: Arc::clone(&self.assets),
+            assets: Rc::clone(&self.assets),
         })
     }
 

@@ -15,6 +15,7 @@ pub struct Artifact {
     pub files: Files,
     pub preprocess: Preprocess,
     pub weights: WeightFormat,
+    pub decoding: DecodingMode,
 }
 
 impl Artifact {
@@ -32,6 +33,30 @@ impl Artifact {
         self.weights = weights;
         self
     }
+
+    pub fn decoding(mut self, decoding: DecodingMode) -> Self {
+        self.decoding = decoding;
+        self
+    }
+
+    fn resolve_artifact(
+        &self,
+        source: &ResolvedModelSource,
+    ) -> RameResult<(PathBuf, ParakeetTdtConfig, SentencePieceDecoder)> {
+        let model_path = source.join_artifact_path(&self.files.model)?;
+        let config_path = source.join_artifact_path(&self.files.config)?;
+        let tokenizer_path = source.join_artifact_path(&self.files.tokenizer)?;
+        let decoder = SentencePieceDecoder::from_file(tokenizer_path)?;
+        let config = ParakeetTdtConfig::from_checkpoint(&config_path, &decoder)?;
+        Ok((model_path, config, decoder))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum DecodingMode {
+    #[default]
+    Standard,
+    Mlx,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -62,24 +87,28 @@ impl ModelLoader for Artifact {
     type Runner = ParakeetMlxModel;
 
     fn load_resolved(self, source: ResolvedModelSource) -> RameResult<Self::Runner> {
-        let model_path = source.join_artifact_path(&self.files.model)?;
-        let config_path = source.join_artifact_path(&self.files.config)?;
-        let tokenizer_path = source.join_artifact_path(&self.files.tokenizer)?;
-        let decoder = SentencePieceDecoder::from_file(tokenizer_path)?;
-        let config = ParakeetTdtConfig::from_checkpoint(&config_path, &decoder)?;
-        pipeline::load(self.preprocess, self.weights, config, decoder, &model_path)
+        let (model_path, config, decoder) = self.resolve_artifact(&source)?;
+        pipeline::load(
+            self.preprocess,
+            self.weights,
+            self.decoding,
+            config,
+            decoder,
+            &model_path,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Artifact, Preprocess, WeightFormat};
+    use super::{Artifact, DecodingMode, Preprocess, WeightFormat};
     use crate::models::parakeet::ParakeetTdtConfig;
 
     #[test]
     fn defaults_to_original_dense_checkpoint() {
         let artifact = Artifact::default();
         assert_eq!(artifact.weights, WeightFormat::Dense);
+        assert_eq!(artifact.decoding, DecodingMode::Standard);
         assert_eq!(artifact.files.model.to_str(), Some("model.safetensors"));
         assert_eq!(artifact.files.tokenizer.to_str(), Some("tokenizer.model"));
         assert_eq!(artifact.preprocess, Preprocess::default());

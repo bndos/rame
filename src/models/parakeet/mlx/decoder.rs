@@ -6,15 +6,11 @@ use mlx_rs::error::Exception;
 
 use crate::RameResult;
 use crate::models::ModelError;
+use crate::models::parakeet::ParakeetTdtConfig;
 use crate::runtime::transducer::tdt::{TdtJointLayout, TdtJointOutput};
 use crate::runtime::{JointNetwork, MaskedPredictionNetwork, PredictionNetwork};
 use crate::tensor::{Device, Tensor, TensorError};
 use crate::tokenization::TokenId;
-
-pub(super) const HIDDEN: usize = 640;
-const GATES: usize = 4 * HIDDEN;
-const VOCABULARY: usize = 8_193;
-const OUTPUTS: usize = 8_198;
 
 struct LstmLayer {
     input_weight: Vec<f32>,
@@ -23,13 +19,15 @@ struct LstmLayer {
 }
 
 pub struct Predictor {
+    config: ParakeetTdtConfig,
     embedding: Vec<f32>,
-    lstm: [LstmLayer; 2],
+    lstm: Vec<LstmLayer>,
     projection_weight: Vec<f32>,
     projection_bias: Vec<f32>,
 }
 
 pub struct Joint {
+    config: ParakeetTdtConfig,
     output_weight: Vec<f32>,
     output_bias: Vec<f32>,
     scratch: Vec<f32>,
@@ -48,8 +46,11 @@ pub struct TensorJoint {
 }
 
 impl TensorPredictor {
-    pub(super) fn load(weights: &mut HashMap<String, Array>) -> Result<Self, Exception> {
-        Predictor::load(weights).map(Self)
+    pub(super) fn load(
+        weights: &mut HashMap<String, Array>,
+        config: ParakeetTdtConfig,
+    ) -> Result<Self, Exception> {
+        Predictor::load(weights, config).map(Self)
     }
 }
 
@@ -57,30 +58,44 @@ impl TensorJoint {
     pub(super) fn load(
         weights: &mut HashMap<String, Array>,
         layout: TdtJointLayout,
+        config: ParakeetTdtConfig,
     ) -> Result<Self, Exception> {
         Ok(Self {
-            inner: Joint::load(weights)?,
+            inner: Joint::load(weights, config)?,
             layout,
         })
     }
 }
 
 impl Predictor {
-    pub(super) fn load(weights: &mut HashMap<String, Array>) -> Result<Self, Exception> {
+    pub(super) fn load(
+        weights: &mut HashMap<String, Array>,
+        config: ParakeetTdtConfig,
+    ) -> Result<Self, Exception> {
+        let hidden = config.network.prediction_hidden;
+        let joint_hidden = config.network.joint_hidden;
+        let vocabulary = config.num_token_classes;
         let predictor = Self {
+            config,
             embedding: take_f32(weights, "decoder.prediction.embed.weight")?,
-            lstm: [LstmLayer::load(weights, 0)?, LstmLayer::load(weights, 1)?],
+            lstm: (0..config.network.prediction_layers)
+                .map(|index| LstmLayer::load(weights, index, hidden))
+                .collect::<Result<Vec<_>, _>>()?,
             projection_weight: take_f32(weights, "joint.pred.weight")?,
             projection_bias: take_f32(weights, "joint.pred.bias")?,
         };
         for (name, actual, wanted) in [
-            ("embedding", predictor.embedding.len(), VOCABULARY * HIDDEN),
+            ("embedding", predictor.embedding.len(), vocabulary * hidden),
             (
                 "projection weight",
                 predictor.projection_weight.len(),
-                HIDDEN * HIDDEN,
+                joint_hidden * hidden,
             ),
-            ("projection bias", predictor.projection_bias.len(), HIDDEN),
+            (
+                "projection bias",
+                predictor.projection_bias.len(),
+                joint_hidden,
+            ),
         ] {
             if actual != wanted {
                 return Err(Exception::custom(format!(
@@ -106,8 +121,8 @@ impl PredictionNetwork for Predictor {
             .into());
         }
         Ok(PredictionState {
-            hidden: vec![0.0; 2 * HIDDEN],
-            cell: vec![0.0; 2 * HIDDEN],
+            hidden: vec![0.0; self.lstm.len() * self.config.network.prediction_hidden],
+            cell: vec![0.0; self.lstm.len() * self.config.network.prediction_hidden],
         })
     }
 
@@ -116,55 +131,59 @@ impl PredictionNetwork for Predictor {
         token: &Self::Tokens,
         state: &Self::State,
     ) -> RameResult<(Self::Output, Self::State)> {
-        if token.is_some_and(|token| token as usize >= VOCABULARY) {
+        let hidden = self.config.network.prediction_hidden;
+        let gates_count = 4 * hidden;
+        let vocabulary = self.config.num_token_classes;
+        if token.is_some_and(|token| token as usize >= vocabulary) {
             return Err(ModelError::InvalidInput(
                 "Parakeet prediction token is out of bounds".to_string(),
             )
             .into());
         }
         let mut value = token.map_or_else(
-            || vec![0.0; HIDDEN],
+            || vec![0.0; hidden],
             |token| {
-                let start = token as usize * HIDDEN;
-                self.embedding[start..start + HIDDEN].to_vec()
+                let start = token as usize * hidden;
+                self.embedding[start..start + hidden].to_vec()
             },
         );
-        let mut next_hidden = vec![0.0; 2 * HIDDEN];
-        let mut next_cell = vec![0.0; 2 * HIDDEN];
-        let mut gates = vec![0.0; GATES];
+        let mut next_hidden = vec![0.0; self.lstm.len() * hidden];
+        let mut next_cell = vec![0.0; self.lstm.len() * hidden];
+        let mut gates = vec![0.0; gates_count];
         for (index, layer) in self.lstm.iter().enumerate() {
-            let offset = index * HIDDEN;
+            let offset = index * hidden;
             gemv(
                 &layer.input_weight,
-                GATES,
-                HIDDEN,
+                gates_count,
+                hidden,
                 &value,
                 &layer.bias,
                 &mut gates,
             );
             gemv_accumulate(
                 &layer.hidden_weight,
-                GATES,
-                HIDDEN,
-                &state.hidden[offset..offset + HIDDEN],
+                gates_count,
+                hidden,
+                &state.hidden[offset..offset + hidden],
                 &mut gates,
             );
-            for unit in 0..HIDDEN {
+            for unit in 0..hidden {
                 let input_gate = sigmoid(gates[unit]);
-                let forget_gate = sigmoid(gates[HIDDEN + unit]);
-                let candidate = gates[2 * HIDDEN + unit].tanh();
-                let output_gate = sigmoid(gates[3 * HIDDEN + unit]);
+                let forget_gate = sigmoid(gates[hidden + unit]);
+                let candidate = gates[2 * hidden + unit].tanh();
+                let output_gate = sigmoid(gates[3 * hidden + unit]);
                 let next = forget_gate * state.cell[offset + unit] + input_gate * candidate;
                 next_cell[offset + unit] = next;
                 next_hidden[offset + unit] = output_gate * next.tanh();
             }
-            value.copy_from_slice(&next_hidden[offset..offset + HIDDEN]);
+            value.copy_from_slice(&next_hidden[offset..offset + hidden]);
         }
-        let mut projection = vec![0.0; HIDDEN];
+        let joint_hidden = self.config.network.joint_hidden;
+        let mut projection = vec![0.0; joint_hidden];
         gemv(
             &self.projection_weight,
-            HIDDEN,
-            HIDDEN,
+            joint_hidden,
+            hidden,
             &value,
             &self.projection_bias,
             &mut projection,
@@ -201,10 +220,11 @@ impl PredictionNetwork for TensorPredictor {
                 actual: state.len(),
             });
         }
-        let mut outputs = Vec::with_capacity(labels.len() * HIDDEN);
+        let hidden = self.0.config.network.joint_hidden;
+        let mut outputs = Vec::with_capacity(labels.len() * hidden);
         let mut next_states = Vec::with_capacity(labels.len());
         for (label, state) in labels.into_iter().zip(state) {
-            let token = if label == (VOCABULARY - 1) as i64 {
+            let token = if label == self.0.config.blank_token_id as i64 {
                 None
             } else {
                 Some(u32::try_from(label).map_err(|_| {
@@ -216,7 +236,7 @@ impl PredictionNetwork for TensorPredictor {
             next_states.push(next_state);
         }
         Ok((
-            Tensor::from_vec(outputs, (state.len(), HIDDEN), &Device::Cpu)
+            Tensor::from_vec(outputs, (state.len(), hidden), &Device::Cpu)
                 .map_err(TensorError::from)?,
             next_states,
         ))
@@ -255,16 +275,22 @@ impl MaskedPredictionNetwork for TensorPredictor {
 }
 
 impl Joint {
-    pub(super) fn load(weights: &mut HashMap<String, Array>) -> Result<Self, Exception> {
+    pub(super) fn load(
+        weights: &mut HashMap<String, Array>,
+        config: ParakeetTdtConfig,
+    ) -> Result<Self, Exception> {
+        let hidden = config.network.joint_hidden;
+        let outputs = config.joint_logit_count();
         let output_weight = take_f32(weights, "joint.joint_net.2.weight")?;
         let output_bias = take_f32(weights, "joint.joint_net.2.bias")?;
-        if output_weight.len() != OUTPUTS * HIDDEN || output_bias.len() != OUTPUTS {
+        if output_weight.len() != outputs * hidden || output_bias.len() != outputs {
             return Err(Exception::custom("invalid Parakeet joint weight shape"));
         }
         Ok(Self {
+            config,
             output_weight,
             output_bias,
-            scratch: vec![0.0; HIDDEN],
+            scratch: vec![0.0; hidden],
         })
     }
 }
@@ -292,18 +318,20 @@ impl Joint {
         time_index: usize,
         predicted: &[f32],
     ) -> RameResult<Vec<f32>> {
-        if predicted.len() != HIDDEN {
+        let hidden = self.config.network.joint_hidden;
+        let outputs = self.config.joint_logit_count();
+        if predicted.len() != hidden {
             return Err(ModelError::InvalidTensorShape {
                 name: "Parakeet prediction".to_string(),
-                expected: format!("{HIDDEN} values"),
+                expected: format!("{hidden} values"),
                 actual: vec![predicted.len()],
             }
             .into());
         }
-        let start = time_index.checked_mul(HIDDEN).ok_or_else(|| {
+        let start = time_index.checked_mul(hidden).ok_or_else(|| {
             ModelError::InvalidInput("Parakeet encoded frame index overflow".to_string())
         })?;
-        let end = start.checked_add(HIDDEN).ok_or_else(|| {
+        let end = start.checked_add(hidden).ok_or_else(|| {
             ModelError::InvalidInput("Parakeet encoded frame index overflow".to_string())
         })?;
         let frame = encoded.get(start..end).ok_or_else(|| {
@@ -312,11 +340,11 @@ impl Joint {
         for ((output, encoded), predicted) in self.scratch.iter_mut().zip(frame).zip(predicted) {
             *output = (*encoded + *predicted).max(0.0);
         }
-        let mut logits = vec![0.0; OUTPUTS];
+        let mut logits = vec![0.0; outputs];
         gemv(
             &self.output_weight,
-            OUTPUTS,
-            HIDDEN,
+            outputs,
+            hidden,
             &self.scratch,
             &self.output_bias,
             &mut logits,
@@ -337,6 +365,7 @@ impl JointNetwork for TensorJoint {
         time_indices: &Tensor,
         predicted: &Tensor,
     ) -> RameResult<Self::Output> {
+        let hidden = self.inner.config.network.joint_hidden;
         let [batch, frames, width] = encoded.dims() else {
             return Err(ModelError::InvalidTensorShape {
                 name: "Parakeet encoded frames".into(),
@@ -345,9 +374,9 @@ impl JointNetwork for TensorJoint {
             }
             .into());
         };
-        if *width != HIDDEN
+        if *width != hidden
             || time_indices.dims() != [*batch]
-            || predicted.dims() != [*batch, HIDDEN]
+            || predicted.dims() != [*batch, hidden]
         {
             return Err(ModelError::InvalidInput(
                 "Parakeet joint tensor dimensions are invalid".into(),
@@ -392,12 +421,12 @@ impl JointNetwork for TensorJoint {
                 )
                 .into());
             }
-            let row_start = row * frames * HIDDEN;
-            let predicted_start = row * HIDDEN;
+            let row_start = row * frames * hidden;
+            let predicted_start = row * hidden;
             logits.extend(self.inner.joint_slices(
-                &encoded_values[row_start..row_start + frames * HIDDEN],
+                &encoded_values[row_start..row_start + frames * hidden],
                 index,
-                &predicted_values[predicted_start..predicted_start + HIDDEN],
+                &predicted_values[predicted_start..predicted_start + hidden],
             )?);
         }
         let logits = Tensor::from_vec(
@@ -411,7 +440,12 @@ impl JointNetwork for TensorJoint {
 }
 
 impl LstmLayer {
-    fn load(weights: &mut HashMap<String, Array>, index: usize) -> Result<Self, Exception> {
+    fn load(
+        weights: &mut HashMap<String, Array>,
+        index: usize,
+        hidden: usize,
+    ) -> Result<Self, Exception> {
+        let gates = 4 * hidden;
         let prefix = format!("decoder.prediction.dec_rnn.lstm.{index}");
         let layer = Self {
             input_weight: take_f32(weights, &format!("{prefix}.Wx"))?,
@@ -419,9 +453,9 @@ impl LstmLayer {
             bias: take_f32(weights, &format!("{prefix}.bias"))?,
         };
         for (name, actual, wanted) in [
-            ("input weight", layer.input_weight.len(), GATES * HIDDEN),
-            ("hidden weight", layer.hidden_weight.len(), GATES * HIDDEN),
-            ("bias", layer.bias.len(), GATES),
+            ("input weight", layer.input_weight.len(), gates * hidden),
+            ("hidden weight", layer.hidden_weight.len(), gates * hidden),
+            ("bias", layer.bias.len(), gates),
         ] {
             if actual != wanted {
                 return Err(Exception::custom(format!(

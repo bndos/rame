@@ -3,8 +3,9 @@ use std::time::Duration;
 
 use mlx_rs::{Array, Device, Stream, with_device, with_stream};
 
-use super::artifact::{Preprocess, WeightFormat};
-use super::decoder::{HIDDEN, TensorJoint, TensorPredictor};
+use super::artifact::{DecodingMode, Preprocess, WeightFormat};
+use super::decoder::{TensorJoint, TensorPredictor};
+use super::device_decoder::{Joint as DeviceJoint, Predictor as DevicePredictor};
 use super::network::Encoder;
 use crate::models::ModelError;
 use crate::models::parakeet::ParakeetTdtConfig;
@@ -12,22 +13,57 @@ use crate::preprocess::audio::{
     self, AudioPipeline, LogMelSpectrogram, NormalizeFeatures, PreEmphasis,
 };
 use crate::runtime::transducer::tdt::{
-    StandardTdtGreedyExecutor, TdtHypothesis, TdtJointLayout, TdtSearch,
+    MlxTdtGreedyExecutor, StandardTdtGreedyExecutor, TdtHypothesis, TdtJointLayout, TdtSearch,
 };
 use crate::runtime::{
-    ProcessedBatch, Processor, TransducerDecoding, TransducerEncoder, TransducerEncoding,
-    TransducerModelRunner,
+    ModelRunner, ProcessedBatch, Processor, TransducerDecoding, TransducerEncoder,
+    TransducerEncoding, TransducerModelRunner,
 };
 use crate::tensor::{DType, Device as TensorDevice, Tensor, TensorError};
 use crate::tokenization::{Decoder, SentencePieceDecoder};
 use crate::transcription::{
     AudioChannelMode, TimeSpan, TimestampGranularity, TranscriptionAlternative, TranscriptionChunk,
-    TranscriptionError, TranscriptionInput, TranscriptionOptions, TranscriptionResult,
+    TranscriptionError, TranscriptionInput, TranscriptionModel, TranscriptionOptions,
+    TranscriptionResult,
 };
 use crate::{RameError, RameResult};
 
-pub type ParakeetMlxModel =
+pub type ParakeetMlxStandardRunner =
     TransducerModelRunner<MlxPreprocessor, HostEncoder, TensorPredictor, TensorJoint, CpuDecoding>;
+
+pub type ParakeetMlxDeviceRunner = TransducerModelRunner<
+    MlxPreprocessor,
+    MlxEncoder,
+    DevicePredictor,
+    DeviceJoint,
+    Decoding<MlxTdtGreedyExecutor>,
+>;
+
+pub enum ParakeetMlxModel {
+    Standard(Box<ParakeetMlxStandardRunner>),
+    Mlx(Box<ParakeetMlxDeviceRunner>),
+}
+
+impl ModelRunner for ParakeetMlxModel {
+    type Input<'a> = TranscriptionInput<'a>;
+    type Output = TranscriptionResult;
+
+    fn run_many<'a>(&mut self, inputs: &'a [Self::Input<'a>]) -> RameResult<Vec<Self::Output>> {
+        match self {
+            Self::Standard(model) => model.run_many(inputs),
+            Self::Mlx(model) => model.run_many(inputs),
+        }
+    }
+}
+
+impl TranscriptionModel for ParakeetMlxModel {
+    fn transcribe_many(
+        &mut self,
+        inputs: &[TranscriptionInput<'_>],
+    ) -> RameResult<Vec<TranscriptionResult>> {
+        self.run_many(inputs)
+    }
+}
 
 pub struct MlxPreprocessor {
     pipeline: AudioPipeline,
@@ -38,6 +74,7 @@ pub struct MlxPreprocessor {
 pub struct MlxEncoder {
     network: Encoder,
     stream: Stream,
+    joint_width: usize,
 }
 
 pub struct HostEncoder(MlxEncoder);
@@ -57,10 +94,71 @@ pub struct Context {
 pub(super) fn load(
     preprocess: Preprocess,
     weights_format: WeightFormat,
+    decoding: DecodingMode,
     mut config: ParakeetTdtConfig,
     decoder: SentencePieceDecoder,
     model_path: &Path,
 ) -> RameResult<ParakeetMlxModel> {
+    let pipeline = audio_pipeline(preprocess)?;
+    config.feature_extractor = preprocess;
+    let (mut weights, stream) = load_parts(model_path)?;
+    let network = with_stream(&stream, || Encoder::load(&mut weights, weights_format))
+        .map_err(|error| mlx_error("construct Parakeet encoder", error))?;
+    let preprocessor = MlxPreprocessor {
+        pipeline,
+        sample_rate: preprocess.sample_rate,
+        stream: stream.clone(),
+    };
+    let encoder = MlxEncoder {
+        network,
+        stream: stream.clone(),
+        joint_width: config.network.joint_hidden,
+    };
+    match decoding {
+        DecodingMode::Standard => {
+            let predictor = with_stream(&stream, || TensorPredictor::load(&mut weights, config))
+                .map_err(|error| mlx_error("construct Parakeet predictor", error))?;
+            let joint = with_stream(&stream, || {
+                TensorJoint::load(
+                    &mut weights,
+                    TdtJointLayout::new(config.num_token_classes, config.durations.len()),
+                    config,
+                )
+            })
+            .map_err(|error| mlx_error("construct Parakeet joint", error))?;
+            Ok(ParakeetMlxModel::Standard(Box::new(
+                TransducerModelRunner::new(
+                    preprocessor,
+                    HostEncoder(encoder),
+                    predictor,
+                    joint,
+                    CpuDecoding(Decoding {
+                        search: StandardTdtGreedyExecutor::new(config.into()),
+                        decoder,
+                    }),
+                ),
+            )))
+        }
+        DecodingMode::Mlx => {
+            let predictor = with_stream(&stream, || DevicePredictor::load(&mut weights, config))
+                .map_err(|error| mlx_error("construct Parakeet device predictor", error))?;
+            let joint = with_stream(&stream, || DeviceJoint::load(&mut weights, config))
+                .map_err(|error| mlx_error("construct Parakeet device joint", error))?;
+            Ok(ParakeetMlxModel::Mlx(Box::new(TransducerModelRunner::new(
+                preprocessor,
+                encoder,
+                predictor,
+                joint,
+                Decoding {
+                    search: MlxTdtGreedyExecutor::new(config.into(), stream),
+                    decoder,
+                },
+            ))))
+        }
+    }
+}
+
+fn audio_pipeline(preprocess: Preprocess) -> RameResult<AudioPipeline> {
     let log_mel = LogMelSpectrogram::new(
         preprocess.sample_rate,
         preprocess.feature_size,
@@ -68,38 +166,11 @@ pub(super) fn load(
         preprocess.win_length,
         preprocess.hop_length,
     );
-    let pipeline = audio::pipeline(log_mel)?
+    Ok(audio::pipeline(log_mel)?
         .add_op(PreEmphasis::new(preprocess.preemphasis))
         .add_op(log_mel)
         .add_op(NormalizeFeatures::new(DType::BF16))
-        .compile();
-    config.feature_extractor = preprocess;
-    let (mut weights, stream) = load_parts(model_path)?;
-    let predictor = with_stream(&stream, || TensorPredictor::load(&mut weights))
-        .map_err(|error| mlx_error("construct Parakeet predictor", error))?;
-    let joint = with_stream(&stream, || {
-        TensorJoint::load(
-            &mut weights,
-            TdtJointLayout::new(config.num_token_classes, config.durations.len()),
-        )
-    })
-    .map_err(|error| mlx_error("construct Parakeet joint", error))?;
-    let network = with_stream(&stream, || Encoder::load(&mut weights, weights_format))
-        .map_err(|error| mlx_error("construct Parakeet encoder", error))?;
-    Ok(TransducerModelRunner::new(
-        MlxPreprocessor {
-            pipeline,
-            sample_rate: preprocess.sample_rate,
-            stream: stream.clone(),
-        },
-        HostEncoder(MlxEncoder { network, stream }),
-        predictor,
-        joint,
-        CpuDecoding(Decoding {
-            search: StandardTdtGreedyExecutor::new(config.into()),
-            decoder,
-        }),
-    ))
+        .compile())
 }
 
 fn load_parts(model_path: &Path) -> RameResult<(std::collections::HashMap<String, Array>, Stream)> {
@@ -152,6 +223,46 @@ impl MlxEncoder {
     }
 }
 
+impl TransducerEncoder for MlxEncoder {
+    type Inputs = Vec<Array>;
+    type Encoded = Array;
+    type Lengths = Vec<usize>;
+
+    fn encode(
+        &mut self,
+        inputs: Self::Inputs,
+    ) -> RameResult<TransducerEncoding<Self::Encoded, Self::Lengths>> {
+        let (encoded, lengths) = self.encode_outputs(inputs)?;
+        if encoded.len() == 1 {
+            return Ok(TransducerEncoding::new(
+                encoded.into_iter().next().ok_or_else(|| {
+                    ModelError::InvalidInput("missing Parakeet encoded row".into())
+                })?,
+                lengths,
+            ));
+        }
+        let max_frames = lengths.iter().copied().max().unwrap_or(0);
+        let max_frames = i32::try_from(max_frames)
+            .map_err(|_| ModelError::InvalidInput("Parakeet encoded length exceeds i32".into()))?;
+        let encoded = with_stream(&self.stream, || {
+            let padded = encoded
+                .into_iter()
+                .map(|output| {
+                    mlx_rs::ops::pad(
+                        &output,
+                        &[(0, 0), (0, max_frames - output.dim(1)), (0, 0)],
+                        None,
+                        None,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            mlx_rs::ops::concatenate(&padded, 0)
+        })
+        .map_err(|error| mlx_error("batch Parakeet encoded frames", error))?;
+        Ok(TransducerEncoding::new(encoded, lengths))
+    }
+}
+
 impl TransducerEncoder for HostEncoder {
     type Inputs = Vec<Array>;
     type Encoded = Tensor;
@@ -173,7 +284,7 @@ impl TransducerEncoder for HostEncoder {
             .collect::<RameResult<Vec<_>>>()?;
         let batch = encoded.len();
         let max_frames = lengths.iter().copied().max().unwrap_or(0);
-        let width = HIDDEN;
+        let width = self.0.joint_width;
         let capacity = batch
             .checked_mul(max_frames)
             .and_then(|count| count.checked_mul(width))

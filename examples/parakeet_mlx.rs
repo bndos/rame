@@ -15,6 +15,9 @@ struct Args {
     /// Use an explicitly quantized Q8 checkpoint.
     #[arg(long)]
     q8: bool,
+    /// Keep Parakeet prediction, joint, and TDT search on MLX.
+    #[arg(long)]
+    device: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,7 +33,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         mlx::Artifact::default()
     };
-    let mut model = artifact.load(args.model_path.as_path())?;
+    let decoding = if args.device {
+        mlx::DecodingMode::Mlx
+    } else {
+        mlx::DecodingMode::Standard
+    };
+    let mut model = artifact
+        .decoding(decoding)
+        .load(args.model_path.as_path())?;
     let result = model.transcribe(TranscriptionInput::new(audio.as_view()))?;
     for chunk in result.results {
         if let Some(alternative) = chunk.alternatives.first() {

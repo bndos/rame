@@ -41,11 +41,19 @@ impl ParakeetFeatureExtractorConfig {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParakeetTdtConfig {
     pub feature_extractor: ParakeetFeatureExtractorConfig,
+    pub network: ParakeetNetworkConfig,
     pub subsampling_factor: usize,
     pub max_symbols_per_step: usize,
     pub num_token_classes: usize,
     pub blank_token_id: TokenId,
     pub durations: [usize; 5],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParakeetNetworkConfig {
+    pub prediction_hidden: usize,
+    pub prediction_layers: usize,
+    pub joint_hidden: usize,
 }
 
 impl From<ParakeetTdtConfig> for TdtDecodingConfig {
@@ -63,6 +71,11 @@ impl ParakeetTdtConfig {
     pub const fn v0_6b_v3() -> Self {
         Self {
             feature_extractor: ParakeetFeatureExtractorConfig::v0_6b_v3(),
+            network: ParakeetNetworkConfig {
+                prediction_hidden: 640,
+                prediction_layers: 2,
+                joint_hidden: 640,
+            },
             subsampling_factor: 8,
             max_symbols_per_step: 10,
             num_token_classes: 8_193,
@@ -89,9 +102,15 @@ impl ParakeetTdtConfig {
 
 #[derive(Deserialize)]
 struct CheckpointConfig {
+    encoder: CheckpointEncoder,
     joint: CheckpointJoint,
     decoder: CheckpointPredictor,
     decoding: CheckpointDecoding,
+}
+
+#[derive(Deserialize)]
+struct CheckpointEncoder {
+    d_model: usize,
 }
 
 #[derive(Deserialize)]
@@ -99,11 +118,26 @@ struct CheckpointJoint {
     vocabulary: Vec<String>,
     num_classes: usize,
     num_extra_outputs: usize,
+    jointnet: CheckpointJointNetwork,
+}
+
+#[derive(Deserialize)]
+struct CheckpointJointNetwork {
+    joint_hidden: usize,
+    encoder_hidden: usize,
+    pred_hidden: usize,
 }
 
 #[derive(Deserialize)]
 struct CheckpointPredictor {
     vocab_size: usize,
+    prednet: CheckpointPredictionNetwork,
+}
+
+#[derive(Deserialize)]
+struct CheckpointPredictionNetwork {
+    pred_hidden: usize,
+    pred_rnn_layers: usize,
 }
 
 #[derive(Deserialize)]
@@ -116,6 +150,16 @@ struct CheckpointDecoding {
 #[derive(Deserialize)]
 struct CheckpointGreedy {
     max_symbols: usize,
+}
+
+impl CheckpointConfig {
+    fn network_config(&self) -> ParakeetNetworkConfig {
+        ParakeetNetworkConfig {
+            prediction_hidden: self.decoder.prednet.pred_hidden,
+            prediction_layers: self.decoder.prednet.pred_rnn_layers,
+            joint_hidden: self.joint.jointnet.joint_hidden,
+        }
+    }
 }
 
 impl ParakeetTdtConfig {
@@ -132,7 +176,8 @@ impl ParakeetTdtConfig {
                 path.display()
             ))
         })?;
-        let config = Self::v0_6b_v3();
+        let mut config = Self::v0_6b_v3();
+        config.network = checkpoint.network_config();
         config.validate_checkpoint(&checkpoint, tokenizer)?;
         Ok(config)
     }
@@ -152,7 +197,24 @@ impl ParakeetTdtConfig {
             || checkpoint.decoding.durations.as_slice() != self.durations
             || checkpoint.decoding.greedy.max_symbols != self.max_symbols_per_step
             || self.blank_token_id != blank
-            || self.num_token_classes != count + 1
+            || count.checked_add(1) != Some(self.num_token_classes)
+            || checkpoint.encoder.d_model != 1024
+            || checkpoint.joint.jointnet.encoder_hidden != checkpoint.encoder.d_model
+            || self.network.prediction_hidden == 0
+            || self.network.prediction_layers == 0
+            || self.network.prediction_layers > 32
+            || self.network.joint_hidden == 0
+            || self
+                .network
+                .prediction_hidden
+                .checked_mul(4)
+                .and_then(|value| i32::try_from(value).ok())
+                .is_none()
+            || i32::try_from(self.network.joint_hidden).is_err()
+            || i32::try_from(self.num_token_classes).is_err()
+            || i32::try_from(self.joint_logit_count()).is_err()
+            || checkpoint.joint.jointnet.pred_hidden != self.network.prediction_hidden
+            || checkpoint.joint.jointnet.joint_hidden != self.network.joint_hidden
         {
             return Err(ModelError::InvalidArtifact(
                 "Parakeet checkpoint does not match the 0.6B v3 TDT configuration".into(),
@@ -218,6 +280,9 @@ mod tests {
         assert_eq!(config.blank_token_id, 8_192);
         assert_eq!(config.durations, [0, 1, 2, 3, 4]);
         assert_eq!(config.joint_logit_count(), 8_198);
+        assert_eq!(config.network.prediction_hidden, 640);
+        assert_eq!(config.network.prediction_layers, 2);
+        assert_eq!(config.network.joint_hidden, 640);
     }
 }
 
@@ -228,12 +293,15 @@ mod checkpoint_tests {
     #[test]
     fn parses_checkpoint_metadata() {
         let config: CheckpointConfig = serde_json::from_str(
-            r#"{"joint":{"vocabulary":["<unk>","a"],"num_classes":2,"num_extra_outputs":5},"decoder":{"vocab_size":2},"decoding":{"model_type":"tdt","durations":[0,1,2,3,4],"greedy":{"max_symbols":10}}}"#,
+            r#"{"encoder":{"d_model":1024},"joint":{"vocabulary":["<unk>","a"],"num_classes":2,"num_extra_outputs":5,"jointnet":{"joint_hidden":384,"encoder_hidden":1024,"pred_hidden":256}},"decoder":{"vocab_size":2,"prednet":{"pred_hidden":256,"pred_rnn_layers":3}},"decoding":{"model_type":"tdt","durations":[0,1,2,3,4],"greedy":{"max_symbols":10}}}"#,
         )
         .unwrap();
         assert_eq!(config.joint.vocabulary, ["<unk>", "a"]);
         assert_eq!(config.joint.num_classes, 2);
         assert_eq!(config.decoder.vocab_size, 2);
+        assert_eq!(config.network_config().prediction_hidden, 256);
+        assert_eq!(config.network_config().prediction_layers, 3);
+        assert_eq!(config.network_config().joint_hidden, 384);
         assert_eq!(config.decoding.durations, [0, 1, 2, 3, 4]);
     }
 }
