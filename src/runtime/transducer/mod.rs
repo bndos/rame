@@ -1,69 +1,86 @@
 pub mod tdt;
 
 use crate::runtime::{ModelRunner, Processor};
-use crate::tensor::{Tensor, TensorMap};
+use crate::tensor::Tensor;
 use crate::{RameError, RameResult};
 
 #[derive(Debug, Clone)]
-pub struct TransducerEncoding {
-    encoded: Tensor,
-    lengths: Tensor,
+pub struct TransducerEncoding<T = Tensor, L = Tensor> {
+    encoded: T,
+    lengths: L,
 }
 
-impl TransducerEncoding {
-    pub fn new(encoded: Tensor, lengths: Tensor) -> Self {
+impl<T, L> TransducerEncoding<T, L> {
+    pub fn new(encoded: T, lengths: L) -> Self {
         Self { encoded, lengths }
     }
 
-    pub fn encoded(&self) -> &Tensor {
+    pub fn encoded(&self) -> &T {
         &self.encoded
     }
 
-    pub fn lengths(&self) -> &Tensor {
+    pub fn lengths(&self) -> &L {
         &self.lengths
     }
 
-    pub fn into_parts(self) -> (Tensor, Tensor) {
+    pub fn into_parts(self) -> (T, L) {
         (self.encoded, self.lengths)
     }
 }
 
 /// Converts preprocessed acoustic features into contextual representations.
 pub trait TransducerEncoder {
-    fn encode(&mut self, inputs: TensorMap) -> RameResult<TransducerEncoding>;
+    type Inputs;
+    type Encoded;
+    type Lengths;
+
+    fn encode(
+        &mut self,
+        inputs: Self::Inputs,
+    ) -> RameResult<TransducerEncoding<Self::Encoded, Self::Lengths>>;
 }
 
 /// Predicts a text-history representation from the last emitted tokens.
 pub trait PredictionNetwork {
+    type Tokens;
+    type Output;
     type State;
 
     fn initial_state(&mut self, batch_size: usize) -> RameResult<Self::State>;
 
     fn predict(
         &mut self,
-        tokens: &Tensor,
+        tokens: &Self::Tokens,
         state: &Self::State,
-    ) -> RameResult<(Tensor, Self::State)>;
+    ) -> RameResult<(Self::Output, Self::State)>;
+}
+
+/// Commits candidate state only for rows that emitted a symbol.
+pub trait MaskedPredictionNetwork: PredictionNetwork {
+    type Mask;
 
     fn replace_prediction(
         &mut self,
-        output: &mut Tensor,
+        output: &mut Self::Output,
         state: &mut Self::State,
-        candidate_output: Tensor,
+        candidate_output: Self::Output,
         candidate_state: Self::State,
-        replace_mask: &Tensor,
+        replace_mask: &Self::Mask,
     ) -> RameResult<()>;
 }
 
 /// Combines acoustic and text-history representations into output logits.
 pub trait JointNetwork {
+    type Encoded;
+    type Indices;
+    type Predicted;
     type Output;
 
     fn joint(
         &mut self,
-        encoded: &Tensor,
-        time_indices: &Tensor,
-        predicted: &Tensor,
+        encoded: &Self::Encoded,
+        time_indices: &Self::Indices,
+        predicted: &Self::Predicted,
     ) -> RameResult<Self::Output>;
 }
 
@@ -79,7 +96,7 @@ where
 
     fn decode_many(
         &mut self,
-        encoding: TransducerEncoding,
+        encoding: TransducerEncoding<E::Encoded, E::Lengths>,
         contexts: &[Self::Context],
         predictor: &mut P,
         joint: &mut J,
@@ -98,7 +115,7 @@ pub struct TransducerModelRunner<A, E, P, J, D> {
 impl<A, E, P, J, D> TransducerModelRunner<A, E, P, J, D>
 where
     A: Processor,
-    E: TransducerEncoder,
+    E: TransducerEncoder<Inputs = A::Inputs>,
     P: PredictionNetwork,
     J: JointNetwork,
     D: TransducerDecoding<E, P, J, Context = A::Context>,
@@ -157,7 +174,7 @@ where
 impl<A, E, P, J, D> ModelRunner for TransducerModelRunner<A, E, P, J, D>
 where
     A: Processor,
-    E: TransducerEncoder,
+    E: TransducerEncoder<Inputs = A::Inputs>,
     P: PredictionNetwork,
     J: JointNetwork,
     D: TransducerDecoding<E, P, J, Context = A::Context>,
@@ -185,8 +202,8 @@ fn validate_batch_length(stage: &'static str, expected: usize, actual: usize) ->
 mod tests {
     use crate::RameResult;
     use crate::runtime::{
-        JointNetwork, PredictionNetwork, ProcessedBatch, Processor, TransducerDecoding,
-        TransducerEncoder,
+        JointNetwork, MaskedPredictionNetwork, PredictionNetwork, ProcessedBatch, Processor,
+        TransducerDecoding, TransducerEncoder,
     };
     use crate::tensor::{Device, Tensor, TensorMap};
 
@@ -197,6 +214,7 @@ mod tests {
     impl Processor for ContextProcessor {
         type Source<'a> = usize;
         type Context = usize;
+        type Inputs = TensorMap;
 
         fn process_many<'a>(
             &self,
@@ -213,6 +231,10 @@ mod tests {
     struct Encoder;
 
     impl TransducerEncoder for Encoder {
+        type Inputs = TensorMap;
+        type Encoded = Tensor;
+        type Lengths = Tensor;
+
         fn encode(&mut self, _inputs: TensorMap) -> RameResult<super::TransducerEncoding> {
             Ok(super::TransducerEncoding::new(
                 Tensor::zeros((3, 1, 1), crate::tensor::DType::F32, &Device::Cpu).unwrap(),
@@ -224,6 +246,8 @@ mod tests {
     struct Predictor;
 
     impl PredictionNetwork for Predictor {
+        type Tokens = Tensor;
+        type Output = Tensor;
         type State = ();
 
         fn initial_state(&mut self, _batch_size: usize) -> RameResult<Self::State> {
@@ -240,7 +264,10 @@ mod tests {
                 (),
             ))
         }
+    }
 
+    impl MaskedPredictionNetwork for Predictor {
+        type Mask = Tensor;
         fn replace_prediction(
             &mut self,
             _output: &mut Tensor,
@@ -256,6 +283,9 @@ mod tests {
     struct Joint;
 
     impl JointNetwork for Joint {
+        type Encoded = Tensor;
+        type Indices = Tensor;
+        type Predicted = Tensor;
         type Output = ();
 
         fn joint(

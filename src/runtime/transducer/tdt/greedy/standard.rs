@@ -1,6 +1,6 @@
 use crate::RameResult;
 use crate::models::ModelError;
-use crate::runtime::{JointNetwork, PredictionNetwork, TransducerEncoding};
+use crate::runtime::{JointNetwork, MaskedPredictionNetwork, TransducerEncoding};
 use crate::tensor::{D, DType, Tensor, TensorError};
 
 use super::workspace::Workspace;
@@ -68,9 +68,16 @@ fn prepare_workspace<'a>(
 
 impl<P, J> TdtSearch<P, J> for StandardTdtGreedyExecutor
 where
-    P: PredictionNetwork,
-    J: JointNetwork<Output = TdtJointOutput>,
+    P: MaskedPredictionNetwork<Tokens = Tensor, Output = Tensor, Mask = Tensor>,
+    J: JointNetwork<
+            Encoded = Tensor,
+            Indices = Tensor,
+            Predicted = Tensor,
+            Output = TdtJointOutput,
+        >,
 {
+    type Encoding = TransducerEncoding;
+
     fn decode_many(
         &mut self,
         encoding: TransducerEncoding,
@@ -318,7 +325,9 @@ mod tests {
     use crate::runtime::transducer::tdt::{
         StandardTdtGreedyExecutor, TdtDecodingConfig, TdtJointLayout, TdtJointOutput, TdtSearch,
     };
-    use crate::runtime::{JointNetwork, PredictionNetwork, TransducerEncoding};
+    use crate::runtime::{
+        JointNetwork, MaskedPredictionNetwork, PredictionNetwork, TransducerEncoding,
+    };
     use crate::tensor::{DType, Device, Tensor, TensorError};
     use crate::{RameResult, tokenization::TokenId};
 
@@ -327,6 +336,8 @@ mod tests {
     }
 
     impl PredictionNetwork for Predictor {
+        type Tokens = Tensor;
+        type Output = Tensor;
         type State = Tensor;
 
         fn initial_state(&mut self, batch_size: usize) -> RameResult<Self::State> {
@@ -354,7 +365,10 @@ mod tests {
                 .map_err(TensorError::from)?;
             Ok((tokens.clone(), next_state))
         }
+    }
 
+    impl MaskedPredictionNetwork for Predictor {
+        type Mask = Tensor;
         fn replace_prediction(
             &mut self,
             output: &mut Tensor,
@@ -381,6 +395,9 @@ mod tests {
     }
 
     impl JointNetwork for Joint {
+        type Encoded = Tensor;
+        type Indices = Tensor;
+        type Predicted = Tensor;
         type Output = TdtJointOutput;
 
         fn joint(

@@ -27,7 +27,7 @@ pub trait LayoutModel {
 
 impl<P, S, D> LayoutModel for StandardModelRunner<P, S, D>
 where
-    P: for<'a> Processor<Source<'a> = ImageView<'a>>,
+    P: for<'a> Processor<Source<'a> = ImageView<'a>, Inputs = crate::tensor::TensorMap>,
     S: InferSession,
     D: Decoder<Output = LayoutResult, Context = P::Context>,
 {

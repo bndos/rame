@@ -11,7 +11,7 @@ pub struct StandardModelRunner<P, S, D> {
 
 impl<P, S, D> StandardModelRunner<P, S, D>
 where
-    P: Processor,
+    P: Processor<Inputs = crate::tensor::TensorMap>,
     S: InferSession,
     D: Decoder<Context = P::Context>,
 {
@@ -77,7 +77,7 @@ where
 
 impl<P, S, D> ModelRunner for StandardModelRunner<P, S, D>
 where
-    P: Processor,
+    P: Processor<Inputs = crate::tensor::TensorMap>,
     S: InferSession,
     D: Decoder<Context = P::Context>,
 {
@@ -106,6 +106,7 @@ mod tests {
     impl Processor for EchoProcessor {
         type Source<'a> = i32;
         type Context = i32;
+        type Inputs = TensorMap;
 
         fn process_many<'a>(
             &self,

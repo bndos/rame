@@ -31,6 +31,7 @@ impl PpDocLayoutPlusOnnxProcessor {
 impl Processor for PpDocLayoutPlusOnnxProcessor {
     type Source<'a> = ImageView<'a>;
     type Context = ();
+    type Inputs = TensorMap;
 
     fn process_many<'a>(
         &self,

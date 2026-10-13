@@ -1,23 +1,25 @@
 use crate::RameResult;
-use crate::runtime::{JointNetwork, PredictionNetwork, TransducerEncoding};
+use crate::runtime::{JointNetwork, PredictionNetwork};
 
-use super::{TdtHypothesis, TdtJointOutput};
+use super::TdtHypothesis;
 
 pub trait TdtSearch<P, J>
 where
     P: PredictionNetwork,
-    J: JointNetwork<Output = TdtJointOutput>,
+    J: JointNetwork,
 {
+    type Encoding;
+
     fn decode_many(
         &mut self,
-        encoding: TransducerEncoding,
+        encoding: Self::Encoding,
         predictor: &mut P,
         joint: &mut J,
     ) -> RameResult<Vec<TdtHypothesis>>;
 
     fn decode(
         &mut self,
-        encoding: TransducerEncoding,
+        encoding: Self::Encoding,
         predictor: &mut P,
         joint: &mut J,
     ) -> RameResult<TdtHypothesis> {
