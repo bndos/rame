@@ -1,5 +1,5 @@
 #[cfg(all(feature = "mlx", target_os = "macos"))]
-pub mod mlx;
+pub use crate::backends::mlx::audio as mlx;
 mod ops;
 
 pub use ops::{LogMelSpectrogram, NormalizeFeatures, PreEmphasis};

@@ -30,6 +30,6 @@ impl From<ort::Error<ort::session::builder::SessionBuilder>> for OrtError {
 
 impl From<OrtError> for crate::RameError {
     fn from(err: OrtError) -> Self {
-        crate::session::SessionError::from(err).into()
+        crate::session::SessionError::backend("ONNX Runtime", err).into()
     }
 }

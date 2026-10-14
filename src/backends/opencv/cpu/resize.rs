@@ -2,11 +2,11 @@ use opencv::core::{Mat, Size, ToInputArray};
 use opencv::imgproc;
 
 use crate::RameResult;
+use crate::backends::opencv::state::OpenCvImage;
 use crate::preprocess::PreprocessError;
-use crate::preprocess::vision::opencv::state::OpenCvImage;
 use crate::preprocess::vision::{Interpolation, Resize, ResizeMode};
 
-pub(in crate::preprocess::vision::opencv) fn resize(
+pub(in crate::backends::opencv) fn resize(
     op: &Resize,
     source: &OpenCvImage<'_>,
 ) -> RameResult<Mat> {

@@ -2,10 +2,10 @@ use rayon::prelude::*;
 
 use super::cpu;
 use crate::RameResult;
+use crate::backends::opencv::OpenCvVisionBackend;
+use crate::backends::opencv::state::{OpenCvImage, OpenCvVisionData};
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
-use crate::preprocess::vision::opencv::OpenCvVisionBackend;
-use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionData};
 use crate::preprocess::vision::{Resize, ResizeMode};
 use crate::tensor::Device;
 

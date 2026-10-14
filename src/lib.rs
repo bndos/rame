@@ -10,6 +10,7 @@
 )]
 
 pub mod audio;
+pub mod backends;
 pub mod error;
 pub mod geometry;
 pub mod image;
@@ -18,6 +19,7 @@ pub mod layout;
 pub mod models;
 pub mod ocr;
 pub mod preprocess;
+pub mod registry;
 pub mod runtime;
 pub mod session;
 pub mod sources;

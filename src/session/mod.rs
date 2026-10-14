@@ -2,7 +2,7 @@ mod backend;
 mod error;
 mod infer_session;
 #[cfg(feature = "onnxruntime")]
-pub mod ort;
+pub use crate::backends::ort;
 
 pub use backend::SessionBackend;
 pub use error::SessionError;

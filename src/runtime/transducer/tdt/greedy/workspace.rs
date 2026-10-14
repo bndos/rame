@@ -1,4 +1,4 @@
-use crate::models::ModelError;
+use crate::runtime::RuntimeError;
 use crate::runtime::transducer::tdt::{TdtDecodingConfig, TdtHypothesis, TdtTokenAlignment};
 use crate::tensor::{DType, Device, Tensor, TensorError, Var};
 use crate::{RameResult, tokenization::TokenId};
@@ -216,7 +216,7 @@ fn output_capacity(max_encoded_frames: usize, max_symbols_per_step: usize) -> Ra
     max_encoded_frames
         .checked_mul(max_symbols_per_step.max(1))
         .ok_or_else(|| {
-            ModelError::UnsupportedFeature {
+            RuntimeError::UnsupportedFeature {
                 feature: "standard TDT greedy workspace",
                 reason: "output token capacity overflows usize",
             }

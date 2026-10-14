@@ -1,7 +1,7 @@
 use ort::session::SessionOutputs;
 use ort::value::{DynValue, TensorElementType};
 
-use crate::session::ort::OrtError;
+use crate::backends::ort::OrtError;
 use crate::tensor::{Tensor, TensorMap, from_array};
 use crate::{RameError, RameResult};
 

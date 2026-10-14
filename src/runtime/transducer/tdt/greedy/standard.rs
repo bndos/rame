@@ -1,5 +1,5 @@
 use crate::RameResult;
-use crate::models::ModelError;
+use crate::runtime::RuntimeError;
 use crate::runtime::{JointNetwork, MaskedPredictionNetwork, TransducerEncoding};
 use crate::tensor::{D, DType, Tensor, TensorError};
 
@@ -58,7 +58,7 @@ fn prepare_workspace<'a>(
     }
 
     workspace.as_mut().ok_or_else(|| {
-        ModelError::UnsupportedFeature {
+        RuntimeError::UnsupportedFeature {
             feature: "standard TDT greedy workspace",
             reason: "workspace initialization failed",
         }
@@ -249,7 +249,7 @@ fn encoded_length_limit(encoded_lengths: &Tensor) -> RameResult<usize> {
         .and_then(|minimum| minimum.to_scalar::<i64>())
         .map_err(TensorError::from)?;
     if minimum < 0 {
-        return Err(ModelError::UnsupportedFeature {
+        return Err(RuntimeError::UnsupportedFeature {
             feature: "TDT encoded lengths",
             reason: "encoded lengths must be non-negative",
         }
@@ -265,7 +265,7 @@ fn encoded_length_limit(encoded_lengths: &Tensor) -> RameResult<usize> {
 
 fn validate_encoded_lengths(encoded_lengths: &Tensor) -> RameResult<usize> {
     if encoded_lengths.rank() != 1 {
-        return Err(ModelError::InvalidTensorShape {
+        return Err(RuntimeError::InvalidTensorShape {
             name: "TDT encoded lengths".into(),
             expected: "rank 1 tensor".into(),
             actual: encoded_lengths.dims().to_vec(),
@@ -277,7 +277,7 @@ fn validate_encoded_lengths(encoded_lengths: &Tensor) -> RameResult<usize> {
 
 fn validate_encoding_devices(encoded: &Tensor, encoded_lengths: &Tensor) -> RameResult<()> {
     if !encoded.device().same_device(encoded_lengths.device()) {
-        return Err(ModelError::UnsupportedFeature {
+        return Err(RuntimeError::UnsupportedFeature {
             feature: "TDT encoding",
             reason: "encoded activations and lengths must be on the same device",
         }
@@ -293,7 +293,7 @@ fn decision_indices(logits: &Tensor, name: &'static str, batch_size: usize) -> R
         .and_then(|indices| indices.to_dtype(DType::I64))
         .map_err(TensorError::from)?;
     if indices.dims() != [batch_size] {
-        return Err(ModelError::InvalidTensorShape {
+        return Err(RuntimeError::InvalidTensorShape {
             name: name.into(),
             expected: format!("{batch_size} logit vectors"),
             actual: logits.dims().to_vec(),

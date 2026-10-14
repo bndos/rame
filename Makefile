@@ -53,6 +53,7 @@ mlx-check:
 	cargo clippy --features mlx --lib -- -D warnings
 	cargo test --features mlx --lib models::parakeet::config
 	cargo test --features mlx --lib models::parakeet::mlx::artifact
+	cargo test --features mlx --lib registry
 
 .PHONY: test
 test:

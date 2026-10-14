@@ -1,10 +1,10 @@
 use crate::RameResult;
+use crate::backends::opencv::OpenCvVisionBackend;
+use crate::backends::opencv::cpu;
+use crate::backends::opencv::state::OpenCvVisionData;
 use crate::preprocess::PreprocessError;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::ToTensor;
-use crate::preprocess::vision::opencv::OpenCvVisionBackend;
-use crate::preprocess::vision::opencv::cpu;
-use crate::preprocess::vision::opencv::state::OpenCvVisionData;
 use crate::tensor::Device;
 
 impl PreprocessOp<OpenCvVisionBackend> for ToTensor {
@@ -42,7 +42,7 @@ mod tests {
     use crate::tensor::{Device, Tensor};
     use ndarray::ArrayD;
 
-    use crate::preprocess::vision::opencv::state::{OpenCvVisionBatch, OpenCvVisionData};
+    use crate::backends::opencv::state::{OpenCvVisionBatch, OpenCvVisionData};
     use crate::preprocess::vision::{NormalizeImage, ToTensor};
 
     #[test]

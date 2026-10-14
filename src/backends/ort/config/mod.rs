@@ -3,7 +3,7 @@ use std::fmt;
 use ort::ep::ExecutionProviderDispatch;
 use ort::session::builder::SessionBuilder;
 
-use crate::session::ort::OrtError;
+use crate::backends::ort::OrtError;
 
 mod cpu;
 

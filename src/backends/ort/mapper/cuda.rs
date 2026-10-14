@@ -3,12 +3,12 @@ use std::sync::RwLockReadGuard;
 use candle_core::Storage;
 use ort::session::SessionInputValue;
 
-use crate::session::ort::mapper::input::{TensorOrtInput as OrtInput, TensorOrtInputDevice};
+use crate::backends::ort::mapper::input::{TensorOrtInput as OrtInput, TensorOrtInputDevice};
 use crate::tensor::{DType, Tensor};
 
-pub(in crate::session::ort) type TensorOrtInput<'a> = OrtInput<'a, CudaTensorOrtInputDevice>;
+pub(in crate::backends::ort) type TensorOrtInput<'a> = OrtInput<'a, CudaTensorOrtInputDevice>;
 
-pub(in crate::session::ort) struct CudaTensorOrtInputDevice;
+pub(in crate::backends::ort) struct CudaTensorOrtInputDevice;
 
 impl TensorOrtInputDevice for CudaTensorOrtInputDevice {
     fn tensor_storage_to_ort<'s>(

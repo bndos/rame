@@ -11,14 +11,14 @@ mod cuda;
 mod input;
 mod output;
 
-pub(in crate::session::ort) enum TensorOrtInput<'a> {
+pub(in crate::backends::ort) enum TensorOrtInput<'a> {
     Cpu(cpu::TensorOrtInput<'a>),
     #[cfg(feature = "onnxruntime-cuda")]
     Cuda(cuda::TensorOrtInput<'a>),
 }
 
 impl TensorOrtInput<'_> {
-    pub(in crate::session::ort) fn as_session_input(
+    pub(in crate::backends::ort) fn as_session_input(
         &self,
     ) -> ort::Result<(String, SessionInputValue<'_>)> {
         match self {

@@ -12,6 +12,8 @@ pub(crate) fn into_py_err(err: RameError) -> PyErr {
         RameError::Source(_) => PyOSError::new_err(err.to_string()),
         RameError::Session(_)
         | RameError::Model(_)
+        | RameError::Runtime(_)
+        | RameError::Registry(_)
         | RameError::Preprocess(_)
         | RameError::Tensor(_) => PyRuntimeError::new_err(err.to_string()),
     }

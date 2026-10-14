@@ -6,7 +6,7 @@ use ort::session::SessionInputValue;
 
 use crate::tensor::Tensor;
 
-pub(in crate::session::ort) trait TensorOrtInputDevice {
+pub(in crate::backends::ort) trait TensorOrtInputDevice {
     fn tensor_storage_to_ort<'s>(
         name: &str,
         tensor: &Tensor,
@@ -14,7 +14,7 @@ pub(in crate::session::ort) trait TensorOrtInputDevice {
     ) -> ort::Result<(String, SessionInputValue<'s>)>;
 }
 
-pub(in crate::session::ort) struct TensorOrtInput<'a, D> {
+pub(in crate::backends::ort) struct TensorOrtInput<'a, D> {
     name: &'a str,
     tensor: &'a Tensor,
     storage: RwLockReadGuard<'a, Storage>,

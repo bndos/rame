@@ -1,34 +1,45 @@
 use crate::RameResult;
 use crate::image::ImageView;
-use crate::models::pp_doclayout::plus::onnx::{Inputs, Preprocess};
-use crate::preprocess::PreprocessConfig;
-use crate::preprocess::vision::VisionPipeline;
+use crate::models::pp_doclayout::plus::onnx::Inputs;
+#[cfg(feature = "opencv")]
+use crate::models::pp_doclayout::plus::onnx::Preprocess;
+use crate::preprocess::pipeline::{PreprocessBackend, PreprocessPipeline};
+use crate::preprocess::vision::VisionBatchOutput;
 use crate::runtime::{ProcessedBatch, Processor};
 use crate::tensor::TensorMap;
 
 #[derive(Debug)]
 #[doc(hidden)]
-pub struct PpDocLayoutPlusOnnxProcessor {
+pub struct PpDocLayoutPlusOnnxProcessor<B: PreprocessBackend> {
     inputs: Inputs,
-    pipeline: VisionPipeline,
+    pipeline: PreprocessPipeline<B>,
 }
 
-impl PpDocLayoutPlusOnnxProcessor {
+impl<B: PreprocessBackend> PpDocLayoutPlusOnnxProcessor<B> {
+    pub fn with_pipeline(inputs: Inputs, pipeline: PreprocessPipeline<B>) -> Self {
+        Self { inputs, pipeline }
+    }
+}
+
+#[cfg(feature = "opencv")]
+impl PpDocLayoutPlusOnnxProcessor<crate::backends::opencv::OpenCvVisionBackend> {
     pub fn new(
         inputs: Inputs,
         preprocess: Preprocess,
-        preprocess_config: PreprocessConfig,
+        preprocess_config: crate::preprocess::PreprocessConfig,
     ) -> Self {
         let pipeline = crate::preprocess::vision::pipeline(preprocess_config)
             .add_op(preprocess.resize)
             .add_op(preprocess.tensor)
             .compile();
-
-        Self { inputs, pipeline }
+        Self::with_pipeline(inputs, pipeline)
     }
 }
 
-impl Processor for PpDocLayoutPlusOnnxProcessor {
+impl<B> Processor for PpDocLayoutPlusOnnxProcessor<B>
+where
+    B: for<'a> PreprocessBackend<Source<'a> = ImageView<'a>, Output = VisionBatchOutput>,
+{
     type Source<'a> = ImageView<'a>;
     type Context = ();
     type Inputs = TensorMap;
@@ -55,7 +66,7 @@ impl Processor for PpDocLayoutPlusOnnxProcessor {
     }
 }
 
-fn bind_inputs(inputs: &Inputs, output: crate::preprocess::vision::VisionBatchOutput) -> TensorMap {
+fn bind_inputs(inputs: &Inputs, output: VisionBatchOutput) -> TensorMap {
     let mut tensors = TensorMap::new();
     tensors.insert(inputs.image.clone(), output.tensor);
     tensors.insert(inputs.im_shape.clone(), output.image_shapes);
@@ -63,7 +74,7 @@ fn bind_inputs(inputs: &Inputs, output: crate::preprocess::vision::VisionBatchOu
     tensors
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "opencv"))]
 mod tests {
     use crate::image::Image;
     use crate::models::pp_doclayout::plus::onnx::{Inputs, Preprocess};

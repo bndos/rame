@@ -1,9 +1,11 @@
+use std::error::Error;
+
 use thiserror::Error;
 
 use crate::audio::AudioError;
 use crate::image::ImageError;
-use crate::models::ModelError;
 use crate::preprocess::PreprocessError;
+use crate::runtime::RuntimeError;
 use crate::session::SessionError;
 use crate::sources::SourceError;
 use crate::tensor::TensorError;
@@ -27,11 +29,17 @@ pub enum RameError {
     #[error(transparent)]
     Image(#[from] ImageError),
 
-    #[error(transparent)]
-    Model(#[from] ModelError),
+    #[error("model error: {0}")]
+    Model(#[source] Box<dyn Error + Send + Sync>),
 
     #[error(transparent)]
     Preprocess(#[from] PreprocessError),
+
+    #[error("model registry error: {0}")]
+    Registry(#[source] Box<dyn Error + Send + Sync>),
+
+    #[error(transparent)]
+    Runtime(#[from] RuntimeError),
 
     #[error(transparent)]
     Session(#[from] SessionError),

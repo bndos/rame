@@ -2,12 +2,12 @@ use opencv::core::{self, Mat, Size, ToInputArray, Vector};
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
+use crate::backends::opencv::state::{OpenCvImage, OpenCvVisionBatch};
 use crate::preprocess::PreprocessError;
-use crate::preprocess::vision::opencv::state::{OpenCvImage, OpenCvVisionBatch};
 use crate::preprocess::vision::{NormalizeImage, TensorLayout, ToTensor, VisionBatchOutput};
 use crate::tensor::{Device, Tensor};
 
-pub(in crate::preprocess::vision::opencv) fn to_tensor(
+pub(in crate::backends::opencv) fn to_tensor(
     op: &ToTensor,
     batch: OpenCvVisionBatch<'_>,
 ) -> RameResult<VisionBatchOutput> {

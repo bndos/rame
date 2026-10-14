@@ -4,12 +4,12 @@ use candle_core::Storage;
 use ort::session::SessionInputValue;
 use ort::value::{PrimitiveTensorElementType, TensorRef};
 
-use crate::session::ort::mapper::input::{TensorOrtInput as OrtInput, TensorOrtInputDevice};
+use crate::backends::ort::mapper::input::{TensorOrtInput as OrtInput, TensorOrtInputDevice};
 use crate::tensor::{DType, Tensor};
 
-pub(in crate::session::ort) type TensorOrtInput<'a> = OrtInput<'a, CpuTensorOrtInputDevice>;
+pub(in crate::backends::ort) type TensorOrtInput<'a> = OrtInput<'a, CpuTensorOrtInputDevice>;
 
-pub(in crate::session::ort) struct CpuTensorOrtInputDevice;
+pub(in crate::backends::ort) struct CpuTensorOrtInputDevice;
 
 impl TensorOrtInputDevice for CpuTensorOrtInputDevice {
     fn tensor_storage_to_ort<'s>(

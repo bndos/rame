@@ -3,8 +3,8 @@ use std::path::Path;
 use ort::session::{OutputSelector, RunOptions, Session};
 
 use crate::RameResult;
-use crate::session::ort::mapper::TensorOrtExt;
-use crate::session::ort::{OrtError, OrtSessionConfig};
+use crate::backends::ort::mapper::TensorOrtExt;
+use crate::backends::ort::{OrtError, OrtSessionConfig};
 use crate::session::{InferSession, SessionBackend};
 use crate::tensor::TensorMap;
 

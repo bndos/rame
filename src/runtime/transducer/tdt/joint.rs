@@ -1,5 +1,5 @@
 use crate::RameResult;
-use crate::models::ModelError;
+use crate::runtime::RuntimeError;
 use crate::tensor::{Tensor, TensorError};
 
 #[derive(Debug, Clone)]
@@ -45,7 +45,7 @@ impl TdtJointOutput {
     pub fn from_combined(logits: Tensor, layout: TdtJointLayout) -> RameResult<Self> {
         let dimensions = logits.dims();
         let Some((&width, leading_dimensions)) = dimensions.split_last() else {
-            return Err(ModelError::InvalidTensorShape {
+            return Err(RuntimeError::InvalidTensorShape {
                 name: "TDT joint logits".into(),
                 expected: format!(
                     "rank >= 1 with last dimension {}",
@@ -56,7 +56,7 @@ impl TdtJointOutput {
             .into());
         };
         if width != layout.joint_logit_count() {
-            return Err(ModelError::InvalidTensorShape {
+            return Err(RuntimeError::InvalidTensorShape {
                 name: "TDT joint logits".into(),
                 expected: format!("last dimension {}", layout.joint_logit_count()),
                 actual: dimensions.to_vec(),
@@ -98,7 +98,7 @@ impl TdtJointOutput {
 #[cfg(test)]
 mod tests {
     use crate::RameError;
-    use crate::models::ModelError;
+    use crate::runtime::RuntimeError;
     use crate::runtime::transducer::tdt::TdtDecodingConfig;
     use crate::tensor::Tensor;
 
@@ -133,7 +133,7 @@ mod tests {
 
         assert!(matches!(
             error,
-            RameError::Model(ModelError::InvalidTensorShape { .. })
+            RameError::Runtime(RuntimeError::InvalidTensorShape { .. })
         ));
     }
 }

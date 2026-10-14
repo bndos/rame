@@ -31,3 +31,24 @@ pub enum ModelError {
         reason: &'static str,
     },
 }
+
+impl From<ModelError> for crate::RameError {
+    fn from(error: ModelError) -> Self {
+        Self::Model(Box::new(error))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ModelError;
+    use crate::RameError;
+
+    #[test]
+    fn preserves_model_error_as_source() {
+        let error = RameError::from(ModelError::InvalidArtifact("invalid checkpoint".into()));
+        let RameError::Model(source) = error else {
+            panic!("expected a model error");
+        };
+        assert!(source.downcast_ref::<ModelError>().is_some());
+    }
+}

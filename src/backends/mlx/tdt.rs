@@ -3,7 +3,7 @@ use mlx_rs::ops::{maximum, select, stack};
 use mlx_rs::{Array, Stream, with_stream};
 
 use crate::RameResult;
-use crate::models::ModelError;
+use crate::runtime::RuntimeError;
 use crate::runtime::transducer::tdt::{
     TdtDecodingConfig, TdtHypothesis, TdtJointLayout, TdtSearch, TdtTokenAlignment,
 };
@@ -48,7 +48,7 @@ impl MlxTdtGreedyExecutor {
             || self.config.durations().is_empty()
             || self.config.max_symbols_per_step() == 0
         {
-            return Err(ModelError::InvalidInput(
+            return Err(RuntimeError::InvalidInput(
                 "TDT class, duration, and symbol limits must be non-zero".into(),
             )
             .into());
@@ -63,15 +63,16 @@ impl MlxTdtGreedyExecutor {
             || i32::try_from(self.config.max_symbols_per_step()).is_err()
             || self.config.blank_token_id() as usize >= self.config.num_token_classes()
         {
-            return Err(ModelError::InvalidInput(
+            return Err(RuntimeError::InvalidInput(
                 "TDT class, blank, or symbol limit is invalid for MLX".into(),
             )
             .into());
         }
         if lengths.iter().any(|&length| length > *frames as usize) {
-            return Err(
-                ModelError::InvalidInput("TDT encoded length exceeds frame count".into()).into(),
-            );
+            return Err(RuntimeError::InvalidInput(
+                "TDT encoded length exceeds frame count".into(),
+            )
+            .into());
         }
         if *batch == 0 {
             return Ok(Vec::new());
@@ -79,24 +80,27 @@ impl MlxTdtGreedyExecutor {
         let lengths = lengths
             .into_iter()
             .map(|value| {
-                i32::try_from(value)
-                    .map_err(|_| ModelError::InvalidInput("TDT encoded length exceeds i32".into()))
+                i32::try_from(value).map_err(|_| {
+                    RuntimeError::InvalidInput("TDT encoded length exceeds i32".into())
+                })
             })
             .collect::<Result<Vec<_>, _>>()?;
         let blank_id = i32::try_from(self.config.blank_token_id())
-            .map_err(|_| ModelError::InvalidInput("TDT blank token exceeds i32".into()))?;
+            .map_err(|_| RuntimeError::InvalidInput("TDT blank token exceeds i32".into()))?;
         let durations = self
             .config
             .durations()
             .iter()
             .map(|&value| {
                 i32::try_from(value)
-                    .map_err(|_| ModelError::InvalidInput("TDT duration exceeds i32".into()))
+                    .map_err(|_| RuntimeError::InvalidInput("TDT duration exceeds i32".into()))
             })
             .collect::<Result<Vec<_>, _>>()?;
         let max_duration = durations.iter().copied().max().unwrap_or(0).max(1);
         if lengths.iter().copied().max().unwrap_or(0) > i32::MAX - max_duration {
-            return Err(ModelError::InvalidInput("TDT time index may overflow i32".into()).into());
+            return Err(
+                RuntimeError::InvalidInput("TDT time index may overflow i32".into()).into(),
+            );
         }
         let lengths = Array::from_slice(&lengths, &[*batch]);
         let durations = Array::from_slice(&durations, &[durations.len() as i32]);
@@ -214,7 +218,7 @@ impl MlxTdtGreedyExecutor {
         let output = stack(&records, 1).map_err(mlx_error)?;
         let values = output
             .to_vec_cast::<i32>()
-            .map_err(|error| ModelError::InvalidInput(format!("MLX TDT output: {error}")))?;
+            .map_err(|error| RuntimeError::backend("MLX", "read TDT output", error))?;
         for (row, hypothesis) in hypotheses.iter_mut().enumerate() {
             for step in 0..records.len() {
                 let offset = (row * records.len() + step) * 4;
@@ -256,17 +260,15 @@ fn any(values: &Array) -> RameResult<bool> {
         .any(None)
         .map_err(mlx_error)?
         .try_item_exact::<bool>()
-        .map_err(|error| {
-            ModelError::InvalidInput(format!("MLX TDT completion check: {error}")).into()
-        })
+        .map_err(|error| RuntimeError::backend("MLX", "check TDT completion", error).into())
 }
 
 fn mlx_error(error: mlx_rs::error::Exception) -> crate::RameError {
-    ModelError::InvalidInput(format!("MLX TDT search: {error}")).into()
+    RuntimeError::backend("MLX", "TDT search", error).into()
 }
 
 fn invalid_shape(name: &str, expected: &str, actual: &[i32]) -> crate::RameError {
-    ModelError::InvalidTensorShape {
+    RuntimeError::InvalidTensorShape {
         name: name.into(),
         expected: expected.into(),
         actual: actual.iter().map(|&dimension| dimension as usize).collect(),
@@ -282,7 +284,7 @@ mod tests {
     use mlx_rs::{Array, Device, Stream};
 
     use crate::RameResult;
-    use crate::models::ModelError;
+    use crate::runtime::RuntimeError;
     use crate::runtime::transducer::tdt::{TdtDecodingConfig, TdtSearch};
     use crate::runtime::{
         JointNetwork, MaskedPredictionNetwork, PredictionNetwork, TransducerEncoding,
@@ -298,7 +300,7 @@ mod tests {
         type State = Array;
 
         fn initial_state(&mut self, batch_size: usize) -> RameResult<Array> {
-            Ok(Array::zeros::<i32>(&[batch_size as i32]).map_err(super::mlx_error)?)
+            Array::zeros::<i32>(&[batch_size as i32]).map_err(super::mlx_error)
         }
 
         fn predict(&mut self, _: &Array, state: &Array) -> RameResult<(Array, Array)> {
@@ -338,7 +340,7 @@ mod tests {
             self.predictions.push(
                 predicted
                     .to_vec_cast::<i32>()
-                    .map_err(|error| ModelError::InvalidInput(error.to_string()))?,
+                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
             );
             let decisions = self.decisions.pop_front().expect("scripted TDT decision");
             let mut logits = [0.0f32; 10];

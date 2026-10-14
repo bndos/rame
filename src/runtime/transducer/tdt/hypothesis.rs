@@ -8,7 +8,7 @@ pub struct TdtTokenAlignment {
 }
 
 impl TdtTokenAlignment {
-    pub(super) fn new(token_id: TokenId, start_frame: usize, duration: usize) -> Self {
+    pub fn new(token_id: TokenId, start_frame: usize, duration: usize) -> Self {
         Self {
             token_id,
             start_frame,
@@ -35,11 +35,11 @@ pub struct TdtHypothesis {
 }
 
 impl TdtHypothesis {
-    pub(super) fn new(tokens: Vec<TdtTokenAlignment>) -> Self {
+    pub fn new(tokens: Vec<TdtTokenAlignment>) -> Self {
         Self { tokens }
     }
 
-    pub(super) fn push(&mut self, token: TdtTokenAlignment) {
+    pub fn push(&mut self, token: TdtTokenAlignment) {
         self.tokens.push(token);
     }
 

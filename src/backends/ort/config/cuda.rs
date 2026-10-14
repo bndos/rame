@@ -1,6 +1,6 @@
 use ort::ep::ExecutionProviderDispatch;
 
-use crate::session::ort::OrtSessionConfig;
+use crate::backends::ort::OrtSessionConfig;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OrtCudaExecutionProviderConfig {

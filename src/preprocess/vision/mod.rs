@@ -1,10 +1,8 @@
-#[cfg(feature = "opencv")]
-mod opencv;
 mod ops;
 mod output;
 
 #[cfg(feature = "opencv")]
-pub use opencv::OpenCvVisionBackend;
+pub use crate::backends::opencv::OpenCvVisionBackend;
 pub use ops::{Interpolation, NormalizeImage, Resize, ResizeMode, TensorLayout, ToTensor};
 pub use output::VisionBatchOutput;
 
