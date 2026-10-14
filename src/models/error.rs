@@ -2,6 +2,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ModelError {
+    #[error("invalid model artifact: {0}")]
+    InvalidArtifact(String),
+
+    #[error("invalid model input: {0}")]
+    InvalidInput(String),
+
     #[error("missing tensor `{0}`")]
     MissingTensor(String),
 
@@ -17,5 +23,11 @@ pub enum ModelError {
         name: String,
         expected: String,
         actual: String,
+    },
+
+    #[error("unsupported model feature `{feature}`: {reason}")]
+    UnsupportedFeature {
+        feature: &'static str,
+        reason: &'static str,
     },
 }

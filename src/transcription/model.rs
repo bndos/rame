@@ -42,9 +42,9 @@ pub trait TranscriptionModel {
 impl<A, E, P, J, D> TranscriptionModel for TransducerModelRunner<A, E, P, J, D>
 where
     A: for<'a> Processor<Source<'a> = TranscriptionInput<'a>>,
-    E: TransducerEncoder,
+    E: TransducerEncoder<Inputs = A::Inputs>,
     P: PredictionNetwork,
-    J: JointNetwork<Encoded = E::Output, Predicted = P::Output>,
+    J: JointNetwork,
     D: TransducerDecoding<E, P, J, Context = A::Context, Output = TranscriptionResult>,
 {
     fn transcribe_many(

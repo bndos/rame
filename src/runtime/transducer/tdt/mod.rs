@@ -1,12 +1,16 @@
 mod greedy;
 mod hypothesis;
 mod joint;
+mod search;
 
 use crate::tokenization::TokenId;
 
-pub use greedy::TdtGreedySearch;
+#[cfg(all(feature = "mlx", target_os = "macos"))]
+pub use greedy::MlxTdtGreedyExecutor;
+pub use greedy::StandardTdtGreedyExecutor;
 pub use hypothesis::{TdtHypothesis, TdtTokenAlignment};
 pub use joint::{TdtJointLayout, TdtJointOutput};
+pub use search::TdtSearch;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TdtDecodingConfig {
