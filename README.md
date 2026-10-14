@@ -23,6 +23,20 @@ benchmarking, and eventually serving.
 source -> loader -> runner -> result
 ```
 
+The workspace has three library layers:
+
+- `rame-core` owns task types, tensor and preprocessing contracts, sessions,
+  runners, and generic transducer search. It does not depend on model or engine
+  adapters.
+- `rame` provides the public facade, built-in models, and ORT, OpenCV, and MLX
+  adapters. Its features control which concrete integrations compile.
+- `rame-registry` is a curated default-loader package. Its manifest selects the
+  implementations it registers, while callers needing a different engine or
+  preprocessing backend use the concrete loaders in `rame`.
+
+`rame-python` binds the `rame` facade; serving can be added above these layers
+without putting request scheduling into model or runtime contracts.
+
 - **source**: resolves model files (HuggingFace or local path).
 - **loader**: binds an exported package and backend to a semantic model and
   constructs its runner.

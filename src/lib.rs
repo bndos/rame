@@ -9,23 +9,15 @@
     )
 )]
 
-pub mod audio;
 pub mod backends;
-pub mod error;
-pub mod geometry;
-pub mod image;
-mod instrumentation;
-pub mod layout;
 pub mod models;
-pub mod ocr;
 pub mod preprocess;
 pub mod registry;
 pub mod runtime;
 pub mod session;
 pub mod sources;
-pub mod tensor;
 pub mod tokenization;
-pub mod transcription;
-
-pub use error::{RameError, RameResult};
-pub use tensor::Device;
+pub use rame_core::{
+    Device, RameError, RameResult, audio, error, geometry, image, layout, ocr, tensor,
+    transcription,
+};

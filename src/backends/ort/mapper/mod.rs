@@ -10,6 +10,7 @@ mod cpu;
 mod cuda;
 mod input;
 mod output;
+pub(in crate::backends::ort) use output::outputs_to_tensors;
 
 pub(in crate::backends::ort) enum TensorOrtInput<'a> {
     Cpu(cpu::TensorOrtInput<'a>),

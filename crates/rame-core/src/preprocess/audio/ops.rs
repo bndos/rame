@@ -41,7 +41,7 @@ impl LogMelSpectrogram {
         }
     }
 
-    pub(crate) fn hann_window(self) -> Vec<f32> {
+    pub fn hann_window(self) -> Vec<f32> {
         const HANN_OFFSET: f32 = 0.5;
         const HANN_AMPLITUDE: f32 = 0.5;
         const FULL_CIRCLE_RADIANS: f32 = 2.0 * std::f32::consts::PI;
@@ -57,7 +57,7 @@ impl LogMelSpectrogram {
         window
     }
 
-    pub(crate) fn slaney_filterbank(self) -> Vec<f32> {
+    pub fn slaney_filterbank(self) -> Vec<f32> {
         const SLANEY_TRIANGLE_AREA_SCALE: f32 = 2.0;
 
         let frequencies = (0..=self.fft_size / 2)

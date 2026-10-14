@@ -33,7 +33,9 @@ check:
 	uvx ruff check .
 	cargo clippy $(FEATURES) --lib
 	cargo clippy -p rame-python --all-targets
+	cargo test -p rame-core
 	cargo test $(FEATURES)
+	cargo check -p rame-registry
 	cargo test -p rame-python
 
 .PHONY: ci

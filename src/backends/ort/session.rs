@@ -4,6 +4,7 @@ use ort::session::{OutputSelector, RunOptions, Session};
 
 use crate::RameResult;
 use crate::backends::ort::mapper::TensorOrtExt;
+use crate::backends::ort::mapper::outputs_to_tensors;
 use crate::backends::ort::{OrtError, OrtSessionConfig};
 use crate::session::{InferSession, SessionBackend};
 use crate::tensor::TensorMap;
@@ -51,7 +52,7 @@ impl InferSession for OrtSession {
 
         let tensors = if self.output_names.is_empty() {
             let outputs = self.session.run(inputs).map_err(OrtError::from)?;
-            outputs.try_into()?
+            outputs_to_tensors(outputs)?
         } else {
             let selector = self
                 .output_names
@@ -66,7 +67,7 @@ impl InferSession for OrtSession {
                 .session
                 .run_with_options(inputs, &options)
                 .map_err(OrtError::from)?;
-            outputs.try_into()?
+            outputs_to_tensors(outputs)?
         };
 
         Ok(tensors)

@@ -3,6 +3,7 @@ use opencv::core::{Mat, Vec3b};
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
+use crate::backends::opencv::error::opencv_error;
 use crate::image::ImageView;
 use crate::preprocess::pipeline::{PreprocessBackend, PreprocessOp};
 use crate::preprocess::vision::VisionBatchOutput;
@@ -102,7 +103,7 @@ impl OpenCvImage<'_> {
             image.data(),
         )
         .map(OpenCvImage::Borrowed)
-        .map_err(PreprocessError::from)?)
+        .map_err(opencv_error)?)
     }
 }
 

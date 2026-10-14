@@ -1,20 +1,18 @@
 use ort::session::SessionOutputs;
 use ort::value::{DynValue, TensorElementType};
 
+use crate::RameResult;
 use crate::backends::ort::OrtError;
 use crate::tensor::{Tensor, TensorMap, from_array};
-use crate::{RameError, RameResult};
 
-impl TryFrom<SessionOutputs<'_>> for TensorMap {
-    type Error = RameError;
-
-    fn try_from(outputs: SessionOutputs<'_>) -> Result<Self, Self::Error> {
-        let mut tensors = Self::new();
-        for (name, value) in outputs {
-            tensors.insert(name.to_string(), output_to_tensor(name, value)?);
-        }
-        Ok(tensors)
+pub(in crate::backends::ort) fn outputs_to_tensors(
+    outputs: SessionOutputs<'_>,
+) -> RameResult<TensorMap> {
+    let mut tensors = TensorMap::new();
+    for (name, value) in outputs {
+        tensors.insert(name.to_string(), output_to_tensor(name, value)?);
     }
+    Ok(tensors)
 }
 
 fn output_to_tensor(name: &str, value: DynValue) -> RameResult<Tensor> {

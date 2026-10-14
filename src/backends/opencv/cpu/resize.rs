@@ -2,8 +2,8 @@ use opencv::core::{Mat, Size, ToInputArray};
 use opencv::imgproc;
 
 use crate::RameResult;
+use crate::backends::opencv::error::opencv_error;
 use crate::backends::opencv::state::OpenCvImage;
-use crate::preprocess::PreprocessError;
 use crate::preprocess::vision::{Interpolation, Resize, ResizeMode};
 
 pub(in crate::backends::opencv) fn resize(
@@ -28,7 +28,7 @@ fn resize_source(op: &Resize, source: &impl ToInputArray) -> RameResult<Mat> {
                 0.0,
                 opencv_interpolation(op),
             )
-            .map_err(PreprocessError::from)?;
+            .map_err(opencv_error)?;
         }
         ResizeMode::Scale {
             scale_width,
@@ -42,7 +42,7 @@ fn resize_source(op: &Resize, source: &impl ToInputArray) -> RameResult<Mat> {
                 scale_height as f64,
                 opencv_interpolation(op),
             )
-            .map_err(PreprocessError::from)?;
+            .map_err(opencv_error)?;
         }
     }
 

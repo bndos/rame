@@ -2,6 +2,7 @@ use opencv::core::{self, Mat, Size, ToInputArray, Vector};
 use opencv::prelude::MatTraitConst;
 
 use crate::RameResult;
+use crate::backends::opencv::error::opencv_error;
 use crate::backends::opencv::state::{OpenCvImage, OpenCvVisionBatch};
 use crate::preprocess::PreprocessError;
 use crate::preprocess::vision::{NormalizeImage, TensorLayout, ToTensor, VisionBatchOutput};
@@ -44,7 +45,7 @@ fn apply_nchw(op: &ToTensor, batch: OpenCvVisionBatch<'_>) -> RameResult<VisionB
         return output(Vec::new(), [0, 3, 0, 0], Vec::new(), Vec::new());
     }
 
-    let size = batch.images[0].size().map_err(PreprocessError::from)?;
+    let size = batch.images[0].size().map_err(opencv_error)?;
     let (height, width) = (size.height as usize, size.width as usize);
     let len = batch.images.len();
     let mut tensor_data = vec![0.0; len * 3 * height * width];
@@ -99,17 +100,17 @@ fn mat_into_nchw(
 ) -> RameResult<()> {
     let mut channels = Vector::<Mat>::new();
     let coefficients = NormalizationCoefficients::from(op.normalize);
-    core::split(image, &mut channels).map_err(PreprocessError::from)?;
+    core::split(image, &mut channels).map_err(opencv_error)?;
 
     for channel in 0..3 {
-        let source = channels.get(channel).map_err(PreprocessError::from)?;
+        let source = channels.get(channel).map_err(opencv_error)?;
         let start = channel * plane;
         let end = start + plane;
         // OpenCV writes into this Mat header, which views the corresponding
         // channel plane inside the output tensor buffer.
         let mut target =
             Mat::new_rows_cols_with_data_mut(height as i32, width as i32, &mut output[start..end])
-                .map_err(PreprocessError::from)?;
+                .map_err(opencv_error)?;
 
         source
             .convert_to(
@@ -118,7 +119,7 @@ fn mat_into_nchw(
                 coefficients.scale[channel],
                 coefficients.bias[channel],
             )
-            .map_err(PreprocessError::from)?;
+            .map_err(opencv_error)?;
     }
 
     Ok(())
@@ -165,7 +166,7 @@ impl From<Option<NormalizeImage>> for NormalizationCoefficients {
 }
 
 fn ensure_size(image: &OpenCvImage<'_>, expected: Size) -> RameResult<()> {
-    let actual = image.size().map_err(PreprocessError::from)?;
+    let actual = image.size().map_err(opencv_error)?;
     if actual == expected {
         return Ok(());
     }

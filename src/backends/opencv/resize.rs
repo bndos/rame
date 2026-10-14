@@ -24,8 +24,8 @@ impl PreprocessOp<OpenCvVisionBackend> for Resize {
             .zip(batch.scale_factors.par_iter_mut())
             .enumerate()
             .try_for_each(|(index, (image, scale_factor))| -> RameResult<()> {
-                *image = self.resize_image(image, device)?;
-                *scale_factor = self.scale_factor(source_sizes[index]);
+                *image = resize_image(self, image, device)?;
+                *scale_factor = resize_scale_factor(self, source_sizes[index]);
                 Ok(())
             })?;
 
@@ -33,38 +33,36 @@ impl PreprocessOp<OpenCvVisionBackend> for Resize {
     }
 }
 
-impl Resize {
-    fn resize_image(
-        &self,
-        source: &OpenCvImage<'_>,
-        device: &Device,
-    ) -> RameResult<OpenCvImage<'static>> {
-        match device {
-            Device::Cpu => cpu::resize(self, source).map(OpenCvImage::Owned),
-            Device::Cuda(_) => Err(PreprocessError::UnsupportedBackendOp {
-                backend: "OpenCV CUDA",
-                op: "Resize",
-            }
-            .into()),
-            Device::Metal(_) => Err(PreprocessError::UnsupportedBackendOp {
-                backend: "OpenCV Metal",
-                op: "Resize",
-            }
-            .into()),
+fn resize_image(
+    op: &Resize,
+    source: &OpenCvImage<'_>,
+    device: &Device,
+) -> RameResult<OpenCvImage<'static>> {
+    match device {
+        Device::Cpu => cpu::resize(op, source).map(OpenCvImage::Owned),
+        Device::Cuda(_) => Err(PreprocessError::UnsupportedBackendOp {
+            backend: "OpenCV CUDA",
+            op: "Resize",
         }
+        .into()),
+        Device::Metal(_) => Err(PreprocessError::UnsupportedBackendOp {
+            backend: "OpenCV Metal",
+            op: "Resize",
+        }
+        .into()),
     }
+}
 
-    fn scale_factor(&self, source_size: [i32; 2]) -> [f32; 2] {
-        let [source_height, source_width] = source_size;
-        match self.mode {
-            ResizeMode::FixedSize { width, height } => [
-                height as f32 / source_height as f32,
-                width as f32 / source_width as f32,
-            ],
-            ResizeMode::Scale {
-                scale_width,
-                scale_height,
-            } => [scale_height, scale_width],
-        }
+fn resize_scale_factor(op: &Resize, source_size: [i32; 2]) -> [f32; 2] {
+    let [source_height, source_width] = source_size;
+    match op.mode {
+        ResizeMode::FixedSize { width, height } => [
+            height as f32 / source_height as f32,
+            width as f32 / source_width as f32,
+        ],
+        ResizeMode::Scale {
+            scale_width,
+            scale_height,
+        } => [scale_height, scale_width],
     }
 }
