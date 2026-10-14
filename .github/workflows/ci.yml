@@ -8,7 +8,6 @@ jobs:
   check:
     runs-on: ubuntu-latest
     env:
-      RAME_CI_FEATURES: --features "huggingface onnxruntime opencv"
       TAPLO_VERSION: 0.10.0
       YAMLFMT_VERSION: v0.21.0
     steps:
@@ -40,4 +39,14 @@ jobs:
           command -v yamlfmt >/dev/null || go install github.com/google/yamlfmt/cmd/yamlfmt@"$YAMLFMT_VERSION"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Check
-        run: make ci FEATURES="$RAME_CI_FEATURES"
+        run: make ci
+  mlx:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2.9.1
+      - name: Check MLX
+        run: make mlx-check

@@ -1,4 +1,4 @@
-FEATURES ?= --all-features
+FEATURES ?= --features "huggingface onnxruntime opencv"
 BENCH_EXTRAS ?= rame paddle-hpi-gpu-cu118
 TOML_FILES := $(shell git ls-files --cached --others --exclude-standard '*.toml')
 YAML_FILES := $(shell git ls-files --cached --others --exclude-standard '*.yaml' '*.yml')
@@ -10,6 +10,7 @@ help:
 		'  make fmt                         Format Rust, TOML, YAML, and benchmark Python files' \
 		'  make check                       Run format checks, Clippy, and tests' \
 		'  make feature-check               Check supported Rust feature combinations' \
+		'  make mlx-check                   Compile MLX and run Metal-independent tests on macOS' \
 		'  make test                        Run tests with FEATURES' \
 		'  make hooks                       Install Lefthook and sync Git hooks' \
 		'  make bench-env                   Sync benchmark environment with BENCH_EXTRAS' \
@@ -45,6 +46,13 @@ feature-check:
 	cargo check --workspace --all-features
 	cargo check -p rame-python --features cuda
 	cargo check -p rame-python --features tensorrt
+
+.PHONY: mlx-check
+mlx-check:
+	cargo check --features mlx --lib --example parakeet_mlx
+	cargo clippy --features mlx --lib -- -D warnings
+	cargo test --features mlx --lib models::parakeet::config
+	cargo test --features mlx --lib models::parakeet::mlx::artifact
 
 .PHONY: test
 test:
